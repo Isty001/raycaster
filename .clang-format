@@ -1,0 +1,10 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+BreakBeforeBraces: Linux
+AllowShortIfStatementsOnASingleLine: false
+IndentCaseLabels: false
+AlignAfterOpenBracket: true
+AlignConsecutiveAssignments: true
+ColumnLimit: 200
+AllowShortFunctionsOnASingleLine: None
+IndentCaseLabels: true
