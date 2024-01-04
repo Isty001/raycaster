@@ -2,17 +2,23 @@
 #define MAP_H
 
 #include "texture.h"
+#include "util.h"
 #include <stdbool.h>
+#include <stdint.h>
+
+typedef struct {
+    Point p1;
+    Point p2;
+} ThinWall;
 
 typedef enum {
-    PROP_EMPTY       = 1,
-    PROP_HAS_TRANSPARENCY = 2,
-    PROP_THIN = 4,
+    PROP_EMPTY = 1,
+    PROP_THIN  = 2,
 } CellPartProperty;
 
 typedef struct {
     const Texture *texture;
-    unsigned int properties;
+    uint32_t properties;
 } CellPart;
 
 typedef struct {
@@ -22,18 +28,19 @@ typedef struct {
 } Cell;
 
 typedef struct {
-    unsigned int id;
+    uint32_t id;
     double x;
     double y;
-    int vertical_offset;
+    // TODO make this relvative to the resolution
+    int32_t vertical_offset;
     double size;
     const Texture *texture;
 } Sprite;
 
-typedef struct Map {
+typedef struct {
     Cell **cells;
     Sprite *sprites;
-    unsigned int sprite_count;
+    uint32_t sprite_count;
     const Texture *sky_texture;
 } Map;
 

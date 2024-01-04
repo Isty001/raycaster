@@ -11,6 +11,14 @@ typedef struct {
     double y;
 } Point;
 
-bool line_intersects(Point p1, Point q1, Point p2, Point q2);
+#define point(_x, _y) ((Point){.x = (_x), .y = (_y)})
+
+
+typedef struct {
+    bool exists;
+    Point point;
+} Intersection;
+
+Intersection line_intersection(Point p1, Point q1, Point p2, Point q2);
 
 #endif

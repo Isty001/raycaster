@@ -17,7 +17,7 @@
 #define numSprites 19
 
 // 1D Zbuffer
-double ZBuffer[1920];
+static double ZBuffer[4000];
 
 static GLuint GL_TEXTURE_OBJ = 0;
 static RGBA *PIXEL_BUFFER    = NULL;
@@ -56,12 +56,13 @@ void renderer_cleanup(void)
     free(PIXEL_BUFFER);
 }
 
-static void display_fps(double frame_duration, int render_time, int display_time, const Player *player, int e)
+static void display_fps(double frame_duration, int render_time, int display_time, const Player *player)
 {
     glRasterPos2f(0, (GLfloat)HEIGHT - 24);
 
     char text[200] = {0};
-    snprintf(text, 200, "FPS: %f MS: %f Render: %d Display: %d angle: %f sky: %d", 1.0 / (frame_duration / 1000), frame_duration, render_time, display_time, player->direction.angle, e);
+    snprintf(text, 200, "FPS: %f MS: %f Render: %d Display: %d Player.angle: %f Player.x: %f Player.y: %f", 1.0 / (frame_duration / 1000), frame_duration, render_time, display_time,
+             player->direction.angle, player->pos.x, player->pos.y);
 
     glDisable(GL_TEXTURE_2D);
 
@@ -172,7 +173,7 @@ static void render_sprites(const Map *map, const Player *player)
 
                     RGBA color = texture_get_color(texture, texX, texY);
 
-                    if (!color_is_visible(color)) {
+                    if (color_is_transparent(color)) {
                         continue;
                     }
 
@@ -288,7 +289,6 @@ static void render_floor_and_ceiling(const Map *map, const Player *player)
 void render(const Map *map, const Player *player, double frame_duration)
 {
     int start = glutGet(GLUT_ELAPSED_TIME);
-    int e     = 0;
 
     render_floor_and_ceiling(map, player);
 
@@ -312,8 +312,8 @@ void render(const Map *map, const Player *player, double frame_duration)
         double side_dist_y;
 
         // length of ray from one x or y-side to next x or y-side
-        double ray_unit_step_size_x = (ray_dir_x == 0) ? 1e30 : fabs(1 / ray_dir_x); // 1e30 -> prevent divsion by zero
-        double ray_unit_step_size_y = (ray_dir_y == 0) ? 1e30 : fabs(1 / ray_dir_y);
+        double ray_unit_step_size_x = (ray_dir_x == 0) ? 1e30 : fabs(1.0 / ray_dir_x); // 1e30 -> prevent divsion by zero
+        double ray_unit_step_size_y = (ray_dir_y == 0) ? 1e30 : fabs(1.0 / ray_dir_y);
 
         // what direction to step in x or y-direction (either +1 or -1)
         double stepX;
@@ -356,6 +356,38 @@ void render(const Map *map, const Player *player, double frame_duration)
 
             // Check if ray has hit a wall
             if (false == (cell->wall.properties & PROP_EMPTY)) {
+
+                if (cell->wall.properties & PROP_THIN) {
+                    // Extend the ray by a larger value to make sure it hits/misses the inner thin wall properly
+                    double ray_x = player->pos.x + ray_dir_x * 1000.0;
+                    double ray_y = player->pos.y + ray_dir_y * 1000.0;
+
+
+                    Intersection intersection = line_intersection(
+                        point(player->pos.x, player->pos.y), point(ray_x, ray_y),
+                        point(17.0, 4.0), point(17.5, 4.0)
+                    );
+
+                    if (intersection.exists) {
+                        if (side == SIDE_HORIZONTAL) {
+                            double dist = player->pos.x > 17.1 ? ceil(17.1) - intersection.point.x : floor(17.1) - intersection.point.x;
+
+                            /* printf("HOR\n"); */
+                            side_dist_x += ray_unit_step_size_x * fabs(dist);
+                        } else {
+                            double dist = player->pos.y > 4 ? ceil(4) - intersection.point.y : floor(4) - intersection.point.y;
+
+                            /* printf("VERT\n"); */
+                            /* printf("dist: %f\n", dist); */
+
+                            side_dist_y += ray_unit_step_size_y * fabs(dist);
+                        }
+
+                        break;
+                    }
+                    continue;
+                }
+
                 break;
             }
         }
@@ -402,12 +434,7 @@ void render(const Map *map, const Player *player, double frame_duration)
         else
             wallX = player->pos.x + perpWallDist * ray_dir_x;
 
-        double ray_x = player->pos.x + ray_dir_x * perpWallDist;
-        double ray_y = player->pos.y + ray_dir_y * perpWallDist;;
-
         wallX -= floor((wallX));
-
-        printf("ray_x: %f ray_y: %f\n", ray_x, ray_y);
 
         // x coordinate on the texture
         int texX = (int)(wallX * (double)texture->width);
@@ -431,7 +458,7 @@ void render(const Map *map, const Player *player, double frame_duration)
 
             RGBA color = texture_get_color(texture, texX, texY);
 
-            if (side == SIDE_VERTICAL) {
+            if (side == SIDE_VERTICAL && !(cell->wall.properties & PROP_THIN)) {
                 color.r /= 2;
                 color.g /= 2;
                 color.b /= 2;
@@ -476,7 +503,7 @@ void render(const Map *map, const Player *player, double frame_duration)
 
     end = glutGet(GLUT_ELAPSED_TIME);
 
-    display_fps(frame_duration, render_time, end - start, player, e);
+    display_fps(frame_duration, render_time, end - start, player);
 
     glPopMatrix();
 }

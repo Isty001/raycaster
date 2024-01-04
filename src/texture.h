@@ -20,7 +20,7 @@ typedef struct {
     RGBA *pixels;
 } Texture;
 
-#define color_is_visible(c) !(c.r == 255 && c.g == 0 && c.b == 255)
+#define color_is_transparent(c) (c.r == 255 && c.g == 0 && c.b == 255)
 
 void texture_load(const char *path);
 

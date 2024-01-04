@@ -26,8 +26,8 @@ static int worldMap[MAP_WIDTH][MAP_HEIGHT] =
   {2,2,2,2,0,2,2,2,2,4,6,4,0,0,6,0,6,3,0,0,0,0,0,3},
   {2,2,0,0,0,0,0,2,2,4,0,0,0,0,0,0,4,3,0,0,0,0,0,3},
   {2,0,0,0,0,0,0,0,2,4,0,0,0,0,0,0,4,3,0,0,0,0,0,3},
-  {1,0,0,0,1,0,0,0,1,4,4,4,4,4,6,0,6,3,3,0,0,0,3,3},
-  {2,2,0,1,11,1,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5},
+  {1,0,0,0,0,0,0,0,1,4,4,4,4,4,6,0,6,3,3,0,0,0,3,3},
+  {2,2,0,0,11,1,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5},
   {2,0,0,0,0,0,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
   {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5},
   {2,0,0,0,0,0,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
@@ -97,7 +97,7 @@ static int CEILING_MAP[MAP_WIDTH][MAP_HEIGHT] =
 static Sprite sprites[numSprites] = {
     {.x = 20.5, .y = 11.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400}, // green light in front of playerstart
     // green lights in every room
-    {.x = 18.5, .y = 4.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
+    {.x = 20.5, .y = 4.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
     {.x = 10.0, .y = 4.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
     {.x = 10.0, .y = 12.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
     {.x = 3.5, .y = 6.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},

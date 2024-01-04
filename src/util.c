@@ -1,61 +1,31 @@
 #include "util.h"
-// Given three collinear points p, q, r, the function checks if
-// point q lies on line segment 'pr'
-bool onSegment(Point p, Point q, Point r)
-{
-    if (q.x <= max(p.x, r.x) && q.x >= min(p.x, r.x) && q.y <= max(p.y, r.y) && q.y >= min(p.y, r.y))
-        return true;
+#include <stdlib.h>
 
-    return false;
-}
-
-// To find orientation of ordered triplet (p, q, r).
-// The function returns following values
-// 0 --> p, q and r are collinear
-// 1 --> Clockwise
-// 2 --> Counterclockwise
-int orientation(Point p, Point q, Point r)
-{
-    // See https://www.geeksforgeeks.org/orientation-3-ordered-points/
-    int val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
-
-    if (val == 0)
-        return 0; // collinear
-
-    return (val > 0) ? 1 : 2; // clock or counterclock wise
-}
 /**
- * https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
+ * https://stackoverflow.com/a/1968345
  */
-bool line_intersects(Point p1, Point q1, Point p2, Point q2)
+Intersection line_intersection(Point p0, Point p1, Point p2, Point p3)
 {
-    // Find the four orientations needed for general and
-    // special cases
-    int o1 = orientation(p1, q1, p2);
-    int o2 = orientation(p1, q1, q2);
-    int o3 = orientation(p2, q2, p1);
-    int o4 = orientation(p2, q2, q1);
+    Point s1;
+    Point s2;
 
-    // General case
-    if (o1 != o2 && o3 != o4)
-        return true;
+    s1.x = p1.x - p0.x;
+    s1.y = p1.y - p0.y;
+    s2.x = p3.x - p2.x;
+    s2.y = p3.y - p2.y;
 
-    // Special Cases
-    // p1, q1 and p2 are collinear and p2 lies on segment p1q1
-    if (o1 == 0 && onSegment(p1, p2, q1))
-        return true;
+    double s = (-s1.y * (p0.x - p2.x) + s1.x * (p0.y - p2.y)) / (-s2.x * s1.y + s1.x * s2.y);
+    double t = (s2.x * (p0.y - p2.y) - s2.y * (p0.x - p2.x)) / (-s2.x * s1.y + s1.x * s2.y);
 
-    // p1, q1 and q2 are collinear and q2 lies on segment p1q1
-    if (o2 == 0 && onSegment(p1, q2, q1))
-        return true;
+    float i_x;
+    float i_y;
 
-    // p2, q2 and p1 are collinear and p1 lies on segment p2q2
-    if (o3 == 0 && onSegment(p2, p1, q2))
-        return true;
+    if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
+        i_x = p0.x + (t * s1.x);
+        i_y = p0.y + (t * s1.y);
 
-    // p2, q2 and q1 are collinear and q1 lies on segment p2q2
-    if (o4 == 0 && onSegment(p2, q1, q2))
-        return true;
+        return (Intersection){.exists = true, .point = point(i_x, i_y)};
+    }
 
-    return false; // Doesn't fall in any of the above cases
+    return (Intersection){.exists = false, .point = point(0, 0)};
 }
