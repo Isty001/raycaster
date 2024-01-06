@@ -73,13 +73,13 @@ static void move_player(const Map *map, Player *player, Vector direction, double
 {
     int new_x = (int)(player->pos.x + direction.x * speed);
 
-    if (map_get_cell(map, new_x, (int)(player->pos.y))->wall.properties & PROP_EMPTY) {
+    if (map_get_cell(map, new_x, (int)(player->pos.y))->wall.empty) {
         player->pos.x += direction.x * speed;
     }
 
     int new_y = (int)(player->pos.y + direction.y * speed);
 
-    if (map_get_cell(map, (int)(player->pos.x), new_y)->wall.properties & PROP_EMPTY) {
+    if (map_get_cell(map, (int)(player->pos.x), new_y)->wall.empty) {
         player->pos.y += direction.y * speed;
     }
 }

@@ -1,7 +1,7 @@
 #ifndef PLAYER
 #define PLAYER
 
-#include "vector.h"
+#include "util.h"
 
 typedef struct {
     struct {

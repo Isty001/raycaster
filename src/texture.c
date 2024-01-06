@@ -25,13 +25,6 @@ struct TextureNode {
 
 static TextureNode *TEXTURE_LIST = NULL;
 
-static const RGBA FALLBACK_COLOR = {
-    .r = 0,
-    .g = 250,
-    .b = 0,
-    .a = 255,
-};
-
 static Texture FALLBACK_TEXTURE;
 
 static void add_texture(const Texture *texture)
@@ -84,7 +77,7 @@ static void load_file(char *file_path, char *name)
         return;
     }
 
-    unsigned int id = parse_id(name);
+    int id = parse_id(name);
 
     if (0 == id || &FALLBACK_TEXTURE != texture_get(id)) {
         // TODO log
@@ -120,8 +113,8 @@ static void load_file(char *file_path, char *name)
 
     texture->pixels = malloc((size_t)(texture->width * texture->height) * sizeof(RGBA));
 
-    for (unsigned int y = 0; y < texture->height; y++) {
-        for (unsigned int x = 0; x < texture->width; x++) {
+    for (int y = 0; y < texture->height; y++) {
+        for (int x = 0; x < texture->width; x++) {
             uint8_t r, g, b;
 
             r = (uint8_t)to_int(fgets(line, sizeof(line), file));
@@ -132,11 +125,6 @@ static void load_file(char *file_path, char *name)
             texture->pixels[y * texture->width + x].g = g;
             texture->pixels[y * texture->width + x].b = b;
             texture->pixels[y * texture->width + x].a = 255;
-
-            /* texture->pixels[y * texture->width + x].raw = ((r & 0xFF) << 24) | ((g & 0xFF) << 16) | ((b & 0xFF) << 8) | (a); */
-            /* texture->pixels[y * texture->width + x].raw = 0x000FFFF; */
-
-            /* printf("rgba(%d,%d,%d,%d) - %u - lu\n", r, g, b, a, texture->pixels[y * texture->width + x].raw); */
         }
     }
 
@@ -181,7 +169,7 @@ void texture_load(const char *dir_path)
     tinydir_close(&dir);
 }
 
-const Texture *texture_get(unsigned int id)
+const Texture *texture_get(int id)
 {
     TextureNode *node = TEXTURE_LIST;
 
@@ -194,15 +182,6 @@ const Texture *texture_get(unsigned int id)
     }
 
     return &FALLBACK_TEXTURE;
-}
-
-RGBA texture_get_color(const Texture *texture, int x, int y)
-{
-    if (x > (int)texture->width || y > (int)texture->height) {
-        return FALLBACK_COLOR;
-    }
-
-    return texture->pixels[y * texture->width + x];
 }
 
 void texture_cleanup(void)

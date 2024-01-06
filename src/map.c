@@ -4,9 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAP_WIDTH 24
-#define MAP_HEIGHT 24
-
 // clang-format off
 static int worldMap[MAP_WIDTH][MAP_HEIGHT] =
 {
@@ -27,7 +24,7 @@ static int worldMap[MAP_WIDTH][MAP_HEIGHT] =
   {2,2,0,0,0,0,0,2,2,4,0,0,0,0,0,0,4,3,0,0,0,0,0,3},
   {2,0,0,0,0,0,0,0,2,4,0,0,0,0,0,0,4,3,0,0,0,0,0,3},
   {1,0,0,0,0,0,0,0,1,4,4,4,4,4,6,0,6,3,3,0,0,0,3,3},
-  {2,2,0,0,11,1,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5},
+  {2,2,0,0,2,0,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5},
   {2,0,0,0,0,0,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
   {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5},
   {2,0,0,0,0,0,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
@@ -115,10 +112,10 @@ static Sprite sprites[numSprites] = {
     {.x = 15.5, .y = 1.5, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
     {.x = 16.0, .y = 1.8, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
     {.x = 16.2, .y = 1.2, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
-    {.x = 3.5, .y = 2.5, .id= 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
-    {.x = 9.5, .y = 15.5, .id= 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
-    {.x = 10.0, .y = 15.1, .id= 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
-    {.x = 10.5, .y = 15.8, .id= 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
+    {.x = 3.5, .y = 2.5, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
+    {.x = 9.5, .y = 15.5, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
+    {.x = 10.0, .y = 15.1, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
+    {.x = 10.5, .y = 15.8, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
 };
 
 static void load_sprites(Map *map)
@@ -133,6 +130,16 @@ static void load_sprites(Map *map)
     }
 }
 
+static LineSegment SEGMENTS[] = {
+    {.start = point(17.5, 5.0), .end = point(17.5, 4.0)},
+    {.start = point(17, 4.5), .end = point(18, 4.5)},
+};
+
+static Polygon POLYGON = {
+    .count    = 2,
+    .segments = SEGMENTS,
+};
+
 Map *map_load(void)
 {
     Map *map   = malloc(sizeof(Map));
@@ -144,25 +151,25 @@ Map *map_load(void)
         map->cells[x] = malloc(MAP_HEIGHT * sizeof(Cell));
 
         for (int y = 0; y < MAP_HEIGHT; y++) {
-            map->cells[x][y].wall.properties = 0;
-            map->cells[x][y].wall.texture    = texture_get(worldMap[x][y]);
+            map->cells[x][y].wall.texture = texture_get(worldMap[x][y]);
 
             if (worldMap[x][y] == 0) {
-                map->cells[x][y].wall.properties |= PROP_EMPTY;
+                map->cells[x][y].wall.empty = true;
+            } else {
+                map->cells[x][y].wall.empty = false;
             }
 
-            if (worldMap[x][y] == 11) {
-                map->cells[x][y].wall.properties |= PROP_THIN;
+            if (x == 17 && y == 4) {
+                map->cells[x][y].wall.polygon = &POLYGON;
+            } else {
+                map->cells[x][y].wall.polygon = NULL;
             }
 
-            map->cells[x][y].floor.properties = 0;
-            map->cells[x][y].floor.texture    = texture_get(7);
-
-            map->cells[x][y].ceiling.texture    = texture_get(3);
-            map->cells[x][y].ceiling.properties = 0;
+            map->cells[x][y].floor.texture   = texture_get(7);
+            map->cells[x][y].ceiling.texture = texture_get(3);
 
             if (CEILING_MAP[x][y] == 2) {
-                map->cells[x][y].ceiling.properties |= PROP_EMPTY;
+                map->cells[x][y].ceiling.texture = NULL;
             }
         }
     }
@@ -170,17 +177,6 @@ Map *map_load(void)
     map->sky_texture = texture_get(9);
 
     return map;
-}
-
-const Cell *map_get_cell(const Map *map, int x, int y)
-{
-    x = min(MAP_WIDTH - 1, x);
-    x = max(0, x);
-
-    y = min(MAP_HEIGHT - 1, y);
-    y = max(0, y);
-
-    return &map->cells[x][y];
 }
 
 void map_cleanup(Map *map)

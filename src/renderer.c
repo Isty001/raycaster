@@ -11,8 +11,10 @@
 #define MAP_WIDTH 24
 #define MAP_HEIGHT 24
 
-#define SIDE_HORIZONTAL 0
-#define SIDE_VERTICAL 1
+typedef enum {
+    SIDE_HORIZONTAL = 0,
+    SIDE_VERTICAL   = 1,
+} HitSide;
 
 #define numSprites 19
 
@@ -44,7 +46,7 @@ void renderer_init(void)
 
 void renderer_set_resolution(int width, int height)
 {
-    PIXEL_BUFFER = realloc(PIXEL_BUFFER, height * width * sizeof(RGBA));
+    PIXEL_BUFFER = realloc(PIXEL_BUFFER, (size_t)(height * width) * sizeof(RGBA));
 
     WIDTH  = width;
     HEIGHT = height;
@@ -58,13 +60,13 @@ void renderer_cleanup(void)
 
 static void display_fps(double frame_duration, int render_time, int display_time, const Player *player)
 {
-    glRasterPos2f(0, (GLfloat)HEIGHT - 24);
+    glDisable(GL_TEXTURE_2D);
+
+    glRasterPos2f(0, 0);
 
     char text[200] = {0};
     snprintf(text, 200, "FPS: %f MS: %f Render: %d Display: %d Player.angle: %f Player.x: %f Player.y: %f", 1.0 / (frame_duration / 1000), frame_duration, render_time, display_time,
              player->direction.angle, player->pos.x, player->pos.y);
-
-    glDisable(GL_TEXTURE_2D);
 
     for (int i = 0; i < 200; i++) {
         glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, text[i]);
@@ -166,8 +168,7 @@ static void render_sprites(const Map *map, const Player *player)
             // 3) it's on the screen (right)
             // 4) ZBuffer, with perpendicular distance
             if (transformY > 0 && stripe > 0 && stripe < WIDTH && transformY < ZBuffer[stripe])
-                for (int y = drawStartY; y < drawEndY; y++) // for every pixel of the current stripe
-                {
+                for (int y = drawStartY; y < drawEndY; y++) {                                   // for every pixel of the current stripe
                     int d    = (y - vertical_offset) * 256 - HEIGHT * 128 + spriteHeight * 128; // 256 and 128 factors to avoid doubles
                     int texY = ((d * texture->height) / spriteHeight) / 256;
 
@@ -237,7 +238,7 @@ static void render_floor_and_ceiling(const Map *map, const Player *player)
         // posZ units. It will travel the same ratio horizontally. The ratio was
         // 1 / p for going through the camera plane, so to go posZ times farther
         // to reach the floor, we get that the total horizontal distance is posZ / p.
-        double rowDistance = camZ / p;
+        double rowDistance = camZ / (double)p;
 
         // calculate the real world step vector we have to add for each x (parallel to camera plane)
         // adding step by step avoids multiplications with a weight in the inner loop
@@ -266,9 +267,7 @@ static void render_floor_and_ceiling(const Map *map, const Player *player)
             if (is_floor) {
                 add_pixel(x, y, texture_get_color(cell->floor.texture, ty, tx));
             } else {
-                if (cell->ceiling.properties & PROP_EMPTY) {
-                    add_pixel(x, y, get_sky_pixel(map, player, x, y));
-                } else {
+                if (cell->ceiling.texture) {
                     const Texture *ceiling_texture = cell->ceiling.texture;
 
                     if (ceiling_texture->width != floor_texture->width) {
@@ -280,10 +279,61 @@ static void render_floor_and_ceiling(const Map *map, const Player *player)
                     }
 
                     add_pixel(x, y, texture_get_color(ceiling_texture, ty, tx));
+                } else {
+                    add_pixel(x, y, get_sky_pixel(map, player, x, y));
                 }
             }
         }
     }
+}
+
+typedef struct {
+    bool exists;
+    double distance_x;
+    double distance_y;
+    double wall_x;
+} PolygonyHit;
+
+static inline PolygonyHit hit_polygon(const Player *player, const Polygon *polygon, const Vector *ray_dir, HitSide side)
+{
+    // Extend the ray to make sure it hits the polygon
+    double ray_x = player->pos.x + ray_dir->x * 1000.0;
+    double ray_y = player->pos.y + ray_dir->y * 1000.0;
+
+    const LineSegment ray_segment = line_segment(point(player->pos.x, player->pos.y), point(ray_x, ray_y));
+
+    PolygonyHit hit = {.exists = false, .distance_x = 9999999999, .distance_y = 9999999999, .wall_x = 9999999999};
+
+    for (unsigned int seg_i = 0; seg_i < polygon->count; seg_i++) {
+        const LineSegment *poly_segment = &polygon->segments[seg_i];
+        const Intersection intersection = line_segment_intersection(&ray_segment, poly_segment);
+
+        /* double angle = fabs(atan2(poly_segment->a.y - poly_segment->b.y, poly_segment->a.x - poly_segment->b.x) / M_PI * 180); */
+
+        if (intersection.exists) {
+            hit.exists = true;
+
+            if (side == SIDE_HORIZONTAL) {
+                double dist = fabs(player->pos.x > 17.1 ? ceil(17.1) - intersection.point.x : floor(17.1) - intersection.point.x);
+                /* printf("HOR dist: %f\n", dist); */
+
+                hit.distance_x = min(hit.distance_x, dist);
+            } else {
+                double dist = fabs(player->pos.y > 4 ? ceil(4.5) - intersection.point.y : floor(4.5) - intersection.point.y);
+
+                hit.distance_y = min(hit.distance_y, dist);
+            }
+
+            // calculate where the ray actually hit the segment
+            hit.wall_x = min(hit.wall_x, hypot(poly_segment->start.x - intersection.point.x, poly_segment->start.y - intersection.point.y));
+
+            /* printf("intersection.x: %f intersection.y: %f poly.x: %f poly.y: %f hit.wall_x: %f\n", intersection.point.x, intersection.point.y, poly_segment->start.x, poly_segment->start.y, hit.wall_x); */
+        }
+
+        /* printf("hit.wall_x: %f intersection.x: %f intersection.y: %f angle: %f\n", hit.wall_x, intersection.point.x, intersection.point.y, angle); */
+    }
+
+    return hit;
 }
 
 void render(const Map *map, const Player *player, double frame_duration)
@@ -299,9 +349,9 @@ void render(const Map *map, const Player *player, double frame_duration)
         // The direction the the ray is the sum of the direction vector and a part of the plane vector.
         //
         // cameraX is the x-coordinate on the camera plane that the current x-coordinate of the screen represents
-        double camera_x  = 2 * x / (double)WIDTH - 1; // x-coordinate in camera space
-        double ray_dir_x = player->direction.vector.x + player->camera.plane.x * camera_x;
-        double ray_dir_y = player->direction.vector.y + player->camera.plane.y * camera_x;
+        double camera_x = 2 * x / (double)WIDTH - 1; // x-coordinate in camera space
+
+        const Vector ray_dir = vector(player->direction.vector.x + player->camera.plane.x * camera_x, player->direction.vector.y + player->camera.plane.y * camera_x);
 
         // which cell of the map we're in
         double mapX = (double)player->pos.x;
@@ -312,24 +362,24 @@ void render(const Map *map, const Player *player, double frame_duration)
         double side_dist_y;
 
         // length of ray from one x or y-side to next x or y-side
-        double ray_unit_step_size_x = (ray_dir_x == 0) ? 1e30 : fabs(1.0 / ray_dir_x); // 1e30 -> prevent divsion by zero
-        double ray_unit_step_size_y = (ray_dir_y == 0) ? 1e30 : fabs(1.0 / ray_dir_y);
+        double ray_unit_step_size_x = (ray_dir.x == 0) ? 1e30 : fabs(1.0 / ray_dir.x); // 1e30 -> prevent divsion by zero
+        double ray_unit_step_size_y = (ray_dir.y == 0) ? 1e30 : fabs(1.0 / ray_dir.y);
 
         // what direction to step in x or y-direction (either +1 or -1)
         double stepX;
         double stepY;
 
-        int side; // was a NS or a EW wall hit?
+        HitSide side; // was a NS or a EW wall hit?
 
         // calculate step and initial sideDist
-        if (ray_dir_x < 0) {
+        if (ray_dir.x < 0) {
             stepX       = -1;
             side_dist_x = (player->pos.x - (int)mapX) * ray_unit_step_size_x;
         } else {
             stepX       = 1;
             side_dist_x = ((int)mapX + 1.0 - player->pos.x) * ray_unit_step_size_x;
         }
-        if (ray_dir_y < 0) {
+        if (ray_dir.y < 0) {
             stepY       = -1;
             side_dist_y = (player->pos.y - (int)mapY) * ray_unit_step_size_y;
         } else {
@@ -338,6 +388,8 @@ void render(const Map *map, const Player *player, double frame_duration)
         }
 
         const Cell *cell;
+
+        double wallX = -9999;
 
         // perform DDA
         while (1) {
@@ -355,39 +407,21 @@ void render(const Map *map, const Player *player, double frame_duration)
             cell = map_get_cell(map, (int)(mapX), (int)(mapY));
 
             // Check if ray has hit a wall
-            if (false == (cell->wall.properties & PROP_EMPTY)) {
+            if (false == cell->wall.empty) {
+                if (cell->wall.polygon) {
+                    PolygonyHit hit = hit_polygon(player, cell->wall.polygon, &ray_dir, side);
 
-                if (cell->wall.properties & PROP_THIN) {
-                    // Extend the ray by a larger value to make sure it hits/misses the inner thin wall properly
-                    double ray_x = player->pos.x + ray_dir_x * 1000.0;
-                    double ray_y = player->pos.y + ray_dir_y * 1000.0;
+                    if (hit.exists) {
 
+                        /* printf("hit.x: %f hit.y: %f side: %d\n", hit.x, hit.y, side); */
 
-                    Intersection intersection = line_intersection(
-                        point(player->pos.x, player->pos.y), point(ray_x, ray_y),
-                        point(17.0, 4.0), point(17.5, 4.0)
-                    );
-
-                    if (intersection.exists) {
-                        if (side == SIDE_HORIZONTAL) {
-                            double dist = player->pos.x > 17.1 ? ceil(17.1) - intersection.point.x : floor(17.1) - intersection.point.x;
-
-                            /* printf("HOR\n"); */
-                            side_dist_x += ray_unit_step_size_x * fabs(dist);
-                        } else {
-                            double dist = player->pos.y > 4 ? ceil(4) - intersection.point.y : floor(4) - intersection.point.y;
-
-                            /* printf("VERT\n"); */
-                            /* printf("dist: %f\n", dist); */
-
-                            side_dist_y += ray_unit_step_size_y * fabs(dist);
-                        }
-
-                        break;
+                        side_dist_x += ray_unit_step_size_x * hit.distance_x;
+                        side_dist_y += ray_unit_step_size_y * hit.distance_y;
+                        wallX = hit.wall_x;
+                    } else {
+                        continue;
                     }
-                    continue;
                 }
-
                 break;
             }
         }
@@ -405,6 +439,10 @@ void render(const Map *map, const Player *player, double frame_duration)
         } else {
             perpWallDist = (side_dist_y - ray_unit_step_size_y);
         }
+
+        /*         if (cell->wall.polygon) { */
+        /*             perpWallDist = (side_dist_x - ray_unit_step_size_x); */
+        /*         } */
 
         ZBuffer[x] = perpWallDist; // perpendicular distance is used
 
@@ -428,28 +466,38 @@ void render(const Map *map, const Player *player, double frame_duration)
         const Texture *texture = cell->wall.texture; // 1 subtracted from it so that texture 0 can be used!
 
         // calculate value of wallX
-        double wallX; // where exactly the wall was hit
-        if (side == SIDE_HORIZONTAL)
-            wallX = player->pos.y + perpWallDist * ray_dir_y;
-        else
-            wallX = player->pos.x + perpWallDist * ray_dir_x;
 
-        wallX -= floor((wallX));
+        if (wallX == -9999) {
+            if (side == SIDE_HORIZONTAL) {
+                wallX = player->pos.y + perpWallDist * ray_dir.y;
+            } else {
+                wallX = player->pos.x + perpWallDist * ray_dir.x;
+            }
+
+            wallX -= floor((wallX));
+        }
 
         // x coordinate on the texture
         int texX = (int)(wallX * (double)texture->width);
 
-        /* printf("texX: %d\n", texX); */
-        if (side == SIDE_HORIZONTAL && ray_dir_x > 0)
-            texX = texture->width - texX - 1;
-        if (side == SIDE_VERTICAL && ray_dir_y < 0)
-            texX = texture->width - texX - 1;
+        if (!cell->wall.polygon) {
+            // Rotate the the texture according to where it is viewed from
+            if (side == SIDE_HORIZONTAL && ray_dir.x > 0) {
+                texX = texture->width - texX - 1;
+            } else if (side == SIDE_VERTICAL && ray_dir.y < 0) {
+                texX = texture->width - texX - 1;
+            }
+        }
 
         // How much to increase the texture coordinate per screen pixel
-        double step = 1.0 * texture->height / lineHeight;
+        double step = (double)texture->height / lineHeight;
+
         // Starting texture coordinate
-        /* double texPos = (drawStart - HEIGHT / 2.0 + lineHeight / 2.0) * step; */
         double texPos = (drawStart - player->camera.pitch - (player->camera.z / perpWallDist) - HEIGHT / 2.0 + lineHeight / 2.0) * step;
+
+        if (cell->wall.polygon) {
+            /* printf("texPos: %f step: %f\n", texPos, step); */
+        }
 
         for (int y = drawStart; y < drawEnd; y++) {
             int texY = (int)texPos;
@@ -458,7 +506,7 @@ void render(const Map *map, const Player *player, double frame_duration)
 
             RGBA color = texture_get_color(texture, texX, texY);
 
-            if (side == SIDE_VERTICAL && !(cell->wall.properties & PROP_THIN)) {
+            if (side == SIDE_VERTICAL && !(cell->wall.polygon)) {
                 color.r /= 2;
                 color.g /= 2;
                 color.b /= 2;

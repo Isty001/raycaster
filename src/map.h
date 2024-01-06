@@ -6,33 +6,39 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef struct {
-    Point p1;
-    Point p2;
-} ThinWall;
-
-typedef enum {
-    PROP_EMPTY = 1,
-    PROP_THIN  = 2,
-} CellPartProperty;
+#define MAP_WIDTH 24
+#define MAP_HEIGHT 24
 
 typedef struct {
-    const Texture *texture;
-    uint32_t properties;
+    const LineSegment *segments;
+    unsigned int count;
+} Polygon;
+
+#define CELL_PART_FIELDS                                                                                                                                                                               \
+    const Texture *texture;                                                                                                                                                                            \
+
+typedef struct {
+    CELL_PART_FIELDS
 } CellPart;
 
 typedef struct {
+    CELL_PART_FIELDS
+    const Polygon *polygon;
+    bool empty;
+} CellWall;
+
+typedef struct {
     CellPart ceiling;
-    CellPart wall;
+    CellWall wall;
     CellPart floor;
 } Cell;
 
 typedef struct {
-    uint32_t id;
+    int id;
     double x;
     double y;
     // TODO make this relvative to the resolution
-    int32_t vertical_offset;
+    int vertical_offset;
     double size;
     const Texture *texture;
 } Sprite;
@@ -40,13 +46,14 @@ typedef struct {
 typedef struct {
     Cell **cells;
     Sprite *sprites;
-    uint32_t sprite_count;
+    unsigned int sprite_count;
     const Texture *sky_texture;
 } Map;
 
 Map *map_load(void);
 
-const Cell *map_get_cell(const Map *map, int x, int y);
+#define map_get_cell(map, x, y) \
+    (&map->cells[(x > MAP_WIDTH - 1) ? MAP_WIDTH - 1 : (x < 0 ? 0 : x)][(y > MAP_HEIGHT - 1) ? MAP_WIDTH - 1 : (y < 0 ? 0 : y)])
 
 void map_cleanup(Map *map);
 
