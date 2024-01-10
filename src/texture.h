@@ -27,7 +27,14 @@ static const RGBA FALLBACK_COLOR = {
     .a = 255,
 };
 
-#define color_is_transparent(c) (c.r == 255 && c.g == 0 && c.b == 255)
+static const RGBA INVISIBLE_COLOR = {
+    .r = 255,
+    .g = 0,
+    .b = 255,
+    .a = 255,
+};
+
+#define color_is_transparent(c) (c.r == INVISIBLE_COLOR.r && c.g == INVISIBLE_COLOR.g && c.b == INVISIBLE_COLOR.b)
 
 void texture_load(const char *path);
 

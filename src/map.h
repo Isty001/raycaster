@@ -28,16 +28,25 @@ typedef struct {
 } CellWall;
 
 typedef struct {
+    double x;
+    double y;
+    double radius;
+    RGBA color;
+} LightSource;
+
+typedef struct {
     CellPart ceiling;
     CellWall wall;
     CellPart floor;
+    const LightSource **light_sources;
+    unsigned int light_source_count;
 } Cell;
 
 typedef struct {
     int id;
     double x;
     double y;
-    // TODO make this relvative to the resolution
+    // TODO make this relative to the resolution
     int vertical_offset;
     double size;
     const Texture *texture;
@@ -48,6 +57,8 @@ typedef struct {
     Sprite *sprites;
     unsigned int sprite_count;
     const Texture *sky_texture;
+    LightSource *light_sources;
+    unsigned int light_source_count;
 } Map;
 
 Map *map_load(void);

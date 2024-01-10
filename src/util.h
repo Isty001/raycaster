@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <math.h>
 
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
@@ -13,7 +17,7 @@ typedef struct {
     double y;
 } Point;
 
-#define point(_x, _y) ((Point){.x = (_x), .y = (_y)})
+#define point(_x, _y) (Point){.x = (_x), .y = (_y)}
 
 typedef enum {
     ORIENTATION_NS,
