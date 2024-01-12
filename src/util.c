@@ -40,3 +40,13 @@ Vector vector_rotate(Vector vector, double rotation)
         .y = vector.x * sin(rotation) + vector.y * cos(rotation),
     };
 }
+
+Vector vector_get_unit(Vector vector)
+{
+    double magnitude = hypot(vector.x, vector.y);
+
+    return vector(
+        vector.x / magnitude,
+        vector.y / magnitude
+    );
+}

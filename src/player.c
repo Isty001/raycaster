@@ -12,7 +12,7 @@ Player *player_load(void)
     player->camera.pitch = 50;
     player->camera.z = 0;
     player->speed.movement = 0.003;
-    player->speed.rotation = 0.002;
+    player->speed.rotation = 0.003;
 
     return player;
 }

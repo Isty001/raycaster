@@ -51,4 +51,6 @@ typedef struct {
 
 Vector vector_rotate(Vector vector, double rotation);
 
+Vector vector_get_unit(Vector vector);
+
 #endif

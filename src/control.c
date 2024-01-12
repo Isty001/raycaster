@@ -159,7 +159,7 @@ void control_motion(int x, int y)
     int height = glutGet(GLUT_WINDOW_HEIGHT);
 
     // TODO
-    if (x < 30 || x > width - 10 || y < 30 || y > height -10) {
+    if (x < 300 || x > width - 200 || y < 300 || y > height -200) {
         PREV_MOUSE_X = width / 2;
         PREV_MOUSE_Y = height / 2;
 
