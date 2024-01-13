@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-#define TEXTURE_WIDTH 64
-#define TEXTURE_HEIGHT 64
-
 typedef struct {
     uint8_t r;
     uint8_t g;

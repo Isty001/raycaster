@@ -1,4 +1,5 @@
 #include "map.h"
+#include "light_source.h"
 #include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +28,7 @@ static int worldMap[MAP_WIDTH][MAP_HEIGHT] =
   {2,2,0,0,2,0,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5},
   {2,0,0,0,0,2,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
   {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5},
-  {2,0,0,0,0,1,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
+  {2,0,0,0,0,1,0,2,0,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
   {2,2,0,0,0,0,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5},
   {2,2,2,2,1,2,2,2,2,2,2,1,2,2,2,5,5,5,5,5,5,5,5,5}
 };
@@ -89,13 +90,13 @@ static int CEILING_MAP[MAP_WIDTH][MAP_HEIGHT] =
 /* }; */
 // clang-format on
 
-#define numSprites 19
+#define numSprites 20
 
 static Sprite sprites[numSprites] = {
     {.x = 20.5, .y = 11.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400}, // green light in front of playerstart
     // green lights in every room
     {.x = 20.5, .y = 6.7, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
-
+    {.x = 21, .y = 3, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
 
     {.x = 10.0, .y = 4.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
     {.x = 10.0, .y = 12.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
@@ -163,9 +164,10 @@ static bool cell_has_light_source(const Cell *cell, const LightSource *light_sou
 
 static void map_generate_lightmap(Map *map)
 {
-    map->light_source_count = 1;
+    map->light_source_count = 2;
     map->light_sources      = malloc(map->light_source_count * sizeof(LightSource));
-    map->light_sources[0]   = (LightSource){.x = 20.5, .y = 6.7, .radius = 4, .color = (RGBA){.r = 255, .g = 0, .b = 0, .a = 255}};
+    map->light_sources[0]   = (LightSource){.x = 20.0, .y = 6.7, .radius = 4, .brightness = 6, .color = (RGBA){.r = 255, .g = 0, .b = 0, .a = 255}};
+    map->light_sources[1]   = (LightSource){.x = 21.0, .y = 3.0, .radius = 5.0, .brightness = 6, .color = (RGBA){.r = 0, .g = 255, .b = 0, .a = 255}};
 
     for (int i = 0; i < map->light_source_count; i++) {
         const LightSource *source = &map->light_sources[i];
@@ -223,8 +225,6 @@ static void map_generate_lightmap(Map *map)
                     cell->light_sources                               = realloc(cell->light_sources, cell->light_source_count * sizeof(LightSource *));
                     cell->light_sources[cell->light_source_count - 1] = source;
                 }
-
-                /* printf("x: %f y: %f\n", point.x, point.y); */
             }
         }
     }

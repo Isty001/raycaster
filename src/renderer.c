@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "light_source.h"
 #include "map.h"
 #include "util.h"
 // clang-format off
@@ -182,8 +183,20 @@ static void render_sprites(const Map *map, const Player *player)
     }
 }
 
-static void render_floor_and_ceiling(const Map *map, const Player *player, const int smallest_wall)
+typedef struct {
+    const Map *map;
+    const Player *player;
+    unsigned int walls_from_width;
+    unsigned int walls_to_width;
+    unsigned int ceiling_from_height;
+    unsigned int ceiling_to_height;
+} RenderContext;
+
+static void render_floor_and_ceiling(const RenderContext *ctx)
 {
+    const Player *player = ctx->player;
+    const Map *map = ctx->map;
+
     // rayDir for leftmost ray (x = 0) and rightmost ray (x = w)
     float ray_dir_x_0 = player->direction.vector.x - player->camera.plane.x;
     float ray_dir_y0  = player->direction.vector.y - player->camera.plane.y;
@@ -195,17 +208,19 @@ static void render_floor_and_ceiling(const Map *map, const Player *player, const
     float cam_z_floor   = half_height + player->camera.z;
     float cam_z_ceiling = half_height - player->camera.z;
 
-    int top    = half_height - smallest_wall / 2.0 + player->camera.pitch;
-    int bottom = half_height + smallest_wall / 2.0 + player->camera.pitch;
+/*     int top    = half_height - smallest_wall / 2.0 + player->camera.pitch + player->camera.z; */
+/*     int bottom = half_height + smallest_wall / 2.0 + player->camera.pitch + player->camera.z; */
+
+    /* printf("top: %d, bottom: %d\n", top, bottom); */
 
     const Texture *sky_texture = map->sky_texture;
-    double sky_angle_ratio     = player->direction.angle * (sky_texture->width / 360.0);
+    float sky_angle_ratio      = player->direction.angle * (sky_texture->width / 360.0);
 
     // FLOOR CASTING
-    for (int y = 0; y < HEIGHT; ++y) {
-        if (y < bottom && y > top) {
-            continue;
-        }
+    for (int y = ctx->ceiling_from_height; y < ctx->ceiling_to_height; ++y) {
+        /* if (y < bottom && y > top) { */
+        /*     continue; */
+        /* } */
 
         bool is_floor = y > half_height + player->camera.pitch;
 
@@ -335,115 +350,12 @@ static inline PolygonyHit hit_polygon(const Player *player, const Polygon *polyg
     return hit;
 }
 
-static bool is_light_source_visible(const Map *map, const LightSource *source, const Cell *expected_cell, float x, float y)
+static void render_walls(const RenderContext *ctx)
 {
-    Vector ray_dir = vector(source->x - x, source->y - y);
-    /* printf("ray_dir.x: %f ray_dir.y: %f\n", ray_dir.x, ray_dir.y); */
+    const Map *map = ctx->map;
+    const Player *player = ctx->player;
 
-    /* printf("x: %f y: %f\n", x, y); */
-
-    // Make sure to always start from the outside of the current Cell
-    if (ray_dir.y < 0) {
-        y += 0.001;
-    } else {
-        y -= 0.001;
-    }
-
-    if (ray_dir.x < 0) {
-        x += 0.001;
-    } else {
-        x -= 0.001;
-    }
-
-    /* printf("x: %f y: %f\n", x, y); */
-
-    ray_dir = vector(source->x - x, source->y - y);
-    /* printf("ray_dir.x: %f ray_dir.y: %f\n", ray_dir.x, ray_dir.y); */
-
-    Point current  = point(x, y);
-
-    double side_dist_x;
-    double side_dist_y;
-
-    double ray_unit_step_size_x = (x == 0) ? 1e30 : fabs(1.0 / ray_dir.x); // 1e30 -> prevent divsion by zero
-    double ray_unit_step_size_y = (y == 0) ? 1e30 : fabs(1.0 / ray_dir.y);
-
-    double step_x;
-    double step_y;
-
-
-    if (ray_dir.x < 0) {
-        step_x      = -1;
-        side_dist_x = (current.x - (int)current.x) * ray_unit_step_size_x;
-    } else {
-        step_x      = 1;
-        side_dist_x = ((int)current.x + 1.0 - current.x) * ray_unit_step_size_x;
-    }
-    if (ray_dir.y < 0) {
-        step_y      = -1;
-        side_dist_y = (current.y - (int)current.y) * ray_unit_step_size_y;
-    } else {
-        step_y      = 1;
-        side_dist_y = ((int)current.y + 1.0 - current.y) * ray_unit_step_size_y;
-    }
-    /* current.x += step_x; */
-    /* current.y += step_y; */
-
-    /* current.y -= step_y; */
-
-    // 21 , 5
-
-    /* printf("dir.x: %f, dir.y: %f point.x: %f point.y: %f x: %f y: %f\n", ray_dir.x, ray_dir.y, current.x, current.y, x, y); */
-
-    /* current.x -= step_x; */
-    /* current.y -= step_y; */
-
-    /* printf("unit_step_size_x: %f unit_step_size_y: %f | ray_dir.x: %f ray_dir.y: %f | side_dist_x: %f side_dist_y: %f\n", ray_unit_step_size_x, ray_unit_step_size_y, ray_dir.x, ray_dir.y,
-     * side_dist_x, side_dist_y); */
-
-    float point_distance = hypot(x - source->x, y - source->y);
-    HitSide side;
-
-    for (unsigned int distance = 0; distance < source->radius; distance++) {
-
-        /* printf("source.x: %f source.y: %f | x: %f y: %f | point.x: %f point.y: %f | dist_x: %f dist_y: %f\n", source->x, source->y, x, y, current.x, current.y, side_dist_x, side_dist_y); */
-
-        /* float current_dist = side == SIDE_HORIZONTAL ? side_dist_x : side_dist_y; */
-
-        if (side_dist_x < side_dist_y) {
-            side_dist_x += ray_unit_step_size_x;
-            current.x += step_x;
-            side = SIDE_HORIZONTAL;
-        } else {
-            side_dist_y += ray_unit_step_size_y;
-            current.y += step_y;
-            side = SIDE_VERTICAL;
-        }
-
-        if ((int) current.x == (int) source->x && (int) current.y == (int) source->y) {
-            return true;
-        }
-
-        const Cell *cell = map_get_cell(map, (int)current.x, (int)current.y);
-
-        if (false == cell->wall.empty) {
-            return false;
-        }
-    }
-
-    /* exit(0); */
-
-    return true;
-}
-
-void render(const Map *map, const Player *player, double frame_duration)
-{
-    int start = glutGet(GLUT_ELAPSED_TIME);
-
-    int smallest_wall = HEIGHT;
-
-    for (int x = 0; x < WIDTH; x++) {
-
+    for (int x = ctx->walls_from_width; x < ctx->walls_to_width; x++) {
         // Calculate ray position and direction
         // The right side of the screen will get coordinate 1, the center of the screen gets coordinate 0, and the left side of the screen gets coordinate
         // The direction the the ray is the sum of the direction vector and a part of the plane vector.
@@ -542,7 +454,7 @@ void render(const Map *map, const Player *player, double frame_duration)
         // Calculate height of line to draw on screen
         int lineHeight = (int)(HEIGHT / perpWallDist);
 
-        smallest_wall = min(smallest_wall, lineHeight);
+        /* smallest_wall = min(smallest_wall, lineHeight); */
 
         // calculate lowest and highest pixel to fill in current stripe
         int drawStart = -lineHeight / 2.0 + HEIGHT / 2.0 + player->camera.pitch + (player->camera.z / perpWallDist);
@@ -584,46 +496,16 @@ void render(const Map *map, const Player *player, double frame_duration)
         }
 
         // How much to increase the texture coordinate per screen pixel
-        double step = (double)texture->height / lineHeight;
+        float step = (float)texture->height / lineHeight;
 
         // Starting texture coordinate
-        double texPos = (drawStart - player->camera.pitch - (player->camera.z / perpWallDist) - HEIGHT / 2.0 + lineHeight / 2.0) * step;
+        float texPos = (drawStart - player->camera.pitch - (player->camera.z / perpWallDist) - HEIGHT / 2.0 + lineHeight / 2.0) * step;
 
         // TODO: calculate only once, see: hit_polygon()
-        double ray_x = player->pos.x + ray_dir.x * perpWallDist;
-        double ray_y = player->pos.y + ray_dir.y * perpWallDist;
+        float ray_x = player->pos.x + ray_dir.x * perpWallDist;
+        float ray_y = player->pos.y + ray_dir.y * perpWallDist;
 
-        RGBA light_color     = {0, 0, 0, 0};
-        float brightness     = 0;
-        bool has_light_color = false;
-
-        if (1 || (21 == (int)mapX && 5 == (int)mapY)) {
-            for (unsigned int li = 0; li < cell->light_source_count; li++) {
-                const LightSource *source = cell->light_sources[li];
-
-                if (false == is_light_source_visible(map, source, cell, ray_x, ray_y)) {
-                    continue;
-                }
-
-                float dist = hypot(source->x - ray_x, source->y - ray_y);
-
-                if (dist > source->radius) {
-                    continue;
-                }
-
-                brightness = fabs(1 - (dist / (source->radius)));
-                brightness *= 8;
-
-                light_color     = source->color;
-                has_light_color = true;
-
-                /* light_color.r -= (light_color.r * brightness); */
-                /* light_color.g -= (light_color.g * brightness); */
-                /* light_color.b -= (light_color.b * brightness); */
-
-                /* printf("rate: %f rgb(%d,%d,%d)\n", rate, light_color.r, light_color.g, light_color.b); */
-            }
-        }
+        Lighting lighting = light_source_get_color(map, cell, point(ray_x, ray_y));
 
         for (int y = drawStart; y < drawEnd; y++) {
             int texY = (int)texPos;
@@ -632,28 +514,85 @@ void render(const Map *map, const Player *player, double frame_duration)
 
             RGBA color = texture_get_color(texture, texX, texY);
 
-            color.r *= 0.25;
-            color.g *= 0.25;
-            color.b *= 0.25;
+            /* color.r *= 0.25; */
+            /* color.g *= 0.25; */
+            /* color.b *= 0.25; */
 
-            if (has_light_color) {
+            if (0 != lighting.brightness) {
+                int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness;
+                int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness;
+                int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness;
 
-                color.r = color.r * 0.90 + light_color.r * (0.10 * 1);
-                color.g = color.g * 0.90 + light_color.g * (0.10 * 1);
-                color.g = color.g * 0.90 + light_color.b * (0.10 * 1);
-
-                color.r = min(255, color.r * brightness);
-                color.g = min(255, color.g * brightness);
-                color.b = min(255, color.b * brightness);
-
-                /* color = light_color; */
+                color.r = min(255, r);
+                color.g = min(255, g);
+                color.b = min(255, b);
             }
 
             add_pixel(x, y, color);
         }
     }
+}
 
-    render_floor_and_ceiling(map, player, smallest_wall);
+static void *render_world(void *arg)
+{
+    render_walls(arg);
+    render_floor_and_ceiling(arg);
+
+    return NULL;
+}
+
+#include <pthread.h>
+
+#define MULTITHREAD 1
+
+void render(const Map *map, const Player *player, double frame_duration)
+{
+    int start = glutGet(GLUT_ELAPSED_TIME);
+
+    int smallest_wall = HEIGHT;
+
+    memset(PIXEL_BUFFER, 0, WIDTH * HEIGHT * sizeof(RGBA));
+
+#if MULTITHREAD
+    pthread_t thread1;
+    pthread_t thread2;
+
+    RenderContext left_ctx = {
+        .map = map,
+        .player = player,
+        .walls_from_width = 0,
+        .walls_to_width = WIDTH * 0.5,
+        .ceiling_from_height = 0,
+        .ceiling_to_height = HEIGHT * 0.5
+    };
+
+    RenderContext right_ctx = {
+        .map = map,
+        .player = player,
+        .walls_from_width = WIDTH * 0.5,
+        .walls_to_width = WIDTH,
+        .ceiling_from_height = HEIGHT * 0.5,
+        .ceiling_to_height = HEIGHT
+    };
+
+    pthread_create(&thread1, NULL, render_world, (void *) &left_ctx);
+    pthread_create(&thread2, NULL, render_world, (void *) &right_ctx);
+
+    pthread_join(thread1,NULL);
+    pthread_join(thread2,NULL);
+#else
+    RenderContext all_ctx = {
+        .map = map,
+        .player = player,
+        .walls_from_width = 0,
+        .walls_to_width = WIDTH,
+        .ceiling_from_height = 0,
+        .ceiling_to_height = HEIGHT
+    };
+
+    render_world(&all_ctx);
+#endif
+
     render_sprites(map, player);
 
     int end         = glutGet(GLUT_ELAPSED_TIME);

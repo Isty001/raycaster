@@ -33,20 +33,10 @@ Intersection line_segment_intersection(const LineSegment *l1, const LineSegment 
     return (Intersection){.exists = false, .point = point(0, 0)};
 }
 
-Vector vector_rotate(Vector vector, double rotation)
+Vector vector_rotate(Vector vector, float rotation)
 {
     return (Vector){
         .x = vector.x * cos(rotation) - vector.y * sin(rotation),
         .y = vector.x * sin(rotation) + vector.y * cos(rotation),
     };
-}
-
-Vector vector_get_unit(Vector vector)
-{
-    double magnitude = hypot(vector.x, vector.y);
-
-    return vector(
-        vector.x / magnitude,
-        vector.y / magnitude
-    );
 }

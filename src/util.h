@@ -13,8 +13,8 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 typedef struct {
-    double x;
-    double y;
+    float x;
+    float y;
 } Point;
 
 #define point(_x, _y) (Point){.x = (_x), .y = (_y)}
@@ -39,8 +39,8 @@ typedef struct {
 Intersection line_segment_intersection(const LineSegment *l1, const LineSegment *l2);
 
 typedef struct {
-    double x;
-    double y;
+    float x;
+    float y;
 } Vector;
 
 #define vector(_x, _y) ((Vector){.x = (_x), .y = (_y)})
@@ -49,8 +49,6 @@ typedef struct {
 
 #define vector_angle(vec) ((atan2(vec.y, vec.x) + M_PI) / M_PI * 180);
 
-Vector vector_rotate(Vector vector, double rotation);
-
-Vector vector_get_unit(Vector vector);
+Vector vector_rotate(Vector vector, float rotation);
 
 #endif
