@@ -95,7 +95,7 @@ static int CEILING_MAP[MAP_WIDTH][MAP_HEIGHT] =
 static Sprite sprites[numSprites] = {
     {.x = 20.5, .y = 11.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400}, // green light in front of playerstart
     // green lights in every room
-    {.x = 20.5, .y = 6.7, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
+    {.x = 20, .y = 6.7, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
     {.x = 21, .y = 3, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
 
     {.x = 10.0, .y = 4.5, .id = 5001, .texture = NULL, .size = 0.2, .vertical_offset = -400},
@@ -164,13 +164,21 @@ static bool cell_has_light_source(const Cell *cell, const LightSource *light_sou
 
 static void map_generate_lightmap(Map *map)
 {
-    map->light_source_count = 2;
+    map->light_source_count = 1;
     map->light_sources      = malloc(map->light_source_count * sizeof(LightSource));
-    map->light_sources[0]   = (LightSource){.x = 20.0, .y = 6.7, .radius = 4, .brightness = 6, .color = (RGBA){.r = 255, .g = 0, .b = 0, .a = 255}};
-    map->light_sources[1]   = (LightSource){.x = 21.0, .y = 3.0, .radius = 5.0, .brightness = 6, .color = (RGBA){.r = 0, .g = 255, .b = 0, .a = 255}};
+    /* map->light_sources[0]   = (LightSource){.x = 20.0, .y = 6.7, .radius = 4, .brightness = 6, .color = (RGBA){.r = 255, .g = 0, .b = 0, .a = 255}}; */
+    map->light_sources[0] = (LightSource){.x = 21.0, .y = 3.0, .radius = 3.0, .brightness = 6, .color = (RGBA){.r = 0, .g = 255, .b = 0, .a = 255}};
 
     for (int i = 0; i < map->light_source_count; i++) {
         const LightSource *source = &map->light_sources[i];
+
+        Cell *cell = map_get_cell(map, (int)source->x, (int)source->y);
+
+        if (!cell_has_light_source(cell, source)) {
+            cell->light_source_count++;
+            cell->light_sources                               = realloc(cell->light_sources, cell->light_source_count * sizeof(LightSource *));
+            cell->light_sources[cell->light_source_count - 1] = source;
+        }
 
         Vector ray_dir = vector(1, 1);
 
@@ -207,7 +215,7 @@ static void map_generate_lightmap(Map *map)
 
             Cell *cell;
 
-            for (unsigned int distance = 0; distance < source->radius; distance++) {
+            while (1) {
                 if (side_dist_x < side_dist_y) {
                     side_dist_x += ray_unit_step_size_x;
                     point.x += step_x;
@@ -224,6 +232,18 @@ static void map_generate_lightmap(Map *map)
                     cell->light_source_count++;
                     cell->light_sources                               = realloc(cell->light_sources, cell->light_source_count * sizeof(LightSource *));
                     cell->light_sources[cell->light_source_count - 1] = source;
+                }
+
+                float dist  = side == SIDE_HORIZONTAL ? side_dist_x : side_dist_y;
+                float ray_x = (source->x + dist * ray_dir.x);
+                float ray_y = (source->y + dist * ray_dir.y);
+
+                if (source->radius + 1 < hypot(source->x - ray_x, source->y - ray_y)) {
+                    break;
+                }
+
+                if (false == cell->wall.empty) {
+                    break;
                 }
             }
         }

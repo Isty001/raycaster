@@ -259,6 +259,11 @@ static void render_floor_and_ceiling(const RenderContext *ctx)
         float floor_x = player->pos.x + row_distance * ray_dir_x_0;
         float floor_y = player->pos.y + row_distance * ray_dir_y0;
 
+        float prev_x = 0;
+        float prev_y = 0;
+
+        Lighting lighting = {0};
+
         for (int x = 0; x < WIDTH; ++x) {
             int cell_x = (int)(floor_x);
             int cell_y = (int)(floor_y);
@@ -277,8 +282,20 @@ static void render_floor_and_ceiling(const RenderContext *ctx)
             int tx = (int)(floor_texture->width * (floor_x - cell_x)) & (floor_texture->width - 1);
             int ty = (int)(floor_texture->height * (floor_y - cell_y)) & (floor_texture->height - 1);
 
+
+            if ((int)(floor_x * 10) != (int)(prev_x * 10) || (int)(floor_y * 10) != (int)(prev_y * 10)) {
+                lighting = light_source_get_color(map, cell, point(floor_x, floor_y));
+            }
+
+            prev_x = floor_x;
+            prev_y = floor_y;
+
             if (is_floor) {
-                add_pixel(x, y, texture_get_color(cell->floor.texture, ty, tx));
+                if (lighting.color.a > 0) {
+                    add_pixel(x, y, lighting.color);
+                } else {
+                    add_pixel(x, y, texture_get_color(cell->floor.texture, ty, tx));
+                }
             } else {
                 if (cell->ceiling.texture) {
                     const Texture *ceiling_texture = cell->ceiling.texture;

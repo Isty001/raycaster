@@ -6,22 +6,28 @@
 
 static bool is_light_source_visible(const Map *map, const LightSource *source, const Cell *expected_cell, Point point)
 {
+    if (source->radius < hypot(source->x - point.x, source->y - point.y)) {
+        return false;
+    }
+
     Vector ray_dir = vector((source->x + 0.001) - point.x, source->y - point.y);
 
     // Make sure to always start from the outside of the current Cell
     if (ray_dir.y < 0) {
-        point.y += 0.0002;
+        point.y += 0.0001;
     } else {
-        point.y -= 0.0002;
+        point.y -= 0.0001;
     }
 
     if (ray_dir.x < 0) {
-        point.x += 0.0002;
+        point.x += 0.0001;
     } else {
-        point.x -= 0.0002;
+        point.x -= 0.0001;
     }
 
     ray_dir = vector(source->x - point.x, source->y - point.y);
+    ray_dir.x += 0.001;
+    ray_dir.y += 0.001;
 
     /* printf("ray_dir.x: %f, ray_dir.y: %f\n", ray_dir.x, ray_dir.y); */
 
@@ -59,7 +65,6 @@ static bool is_light_source_visible(const Map *map, const LightSource *source, c
         }
 
         if ((int)point.x == (int)source->x && (int)point.y == (int)source->y) {
-            /* printf("source.x: %f source.x int: %d source.y: %f source.y int: %d\n", source->x, (int)source->x, source->y, (int) source->y); */
             return true;
         }
 
@@ -101,9 +106,9 @@ Lighting light_source_get_color(const Map *map, const Cell *cell, Point point)
             continue;
         }
 
-        lighting.color.r = (lighting.color.r + source->color.r) / 2;
-        lighting.color.g = (lighting.color.g + source->color.g) / 2;
-        lighting.color.b = (lighting.color.b + source->color.b) / 2;
+        lighting.color.r = (lighting.color.r + source->color.r);
+        lighting.color.g = (lighting.color.g + source->color.g);
+        lighting.color.b = (lighting.color.b + source->color.b);
     }
 
     lighting.color.r *= 0.10;
