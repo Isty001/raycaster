@@ -167,7 +167,7 @@ static void map_generate_lightmap(Map *map)
     map->light_source_count = 1;
     map->light_sources      = malloc(map->light_source_count * sizeof(LightSource));
     /* map->light_sources[0]   = (LightSource){.x = 20.0, .y = 6.7, .radius = 4, .brightness = 6, .color = (RGBA){.r = 255, .g = 0, .b = 0, .a = 255}}; */
-    map->light_sources[0] = (LightSource){.x = 21.0, .y = 3.0, .radius = 3.0, .brightness = 6, .color = (RGBA){.r = 0, .g = 255, .b = 0, .a = 255}};
+    map->light_sources[0] = (LightSource){.x = 21.0, .y = 3.0, .radius = 3.0, .brightness = 2, .color = (RGBA){.r = 0, .g = 255, .b = 0, .a = 255}};
 
     for (int i = 0; i < map->light_source_count; i++) {
         const LightSource *source = &map->light_sources[i];
@@ -254,6 +254,7 @@ Map *map_load(void)
 {
     Map *map   = malloc(sizeof(Map));
     map->cells = malloc(MAP_HEIGHT * sizeof(Cell *));
+    map->general_brightness = 0.20;
 
     load_sprites(map);
 

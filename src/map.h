@@ -52,6 +52,7 @@ typedef struct {
     const Texture *sky_texture;
     struct LightSource *light_sources;
     unsigned int light_source_count;
+    float general_brightness;
 } Map;
 
 Map *map_load(void);

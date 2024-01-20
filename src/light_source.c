@@ -82,8 +82,8 @@ Lighting light_source_get_color(const Map *map, const Cell *cell, Point point)
 {
     Lighting lighting = {0};
 
-    bool first_color             = true;
-    unsigned int collected_count = 0;
+    float brightness = 0;
+    bool has_color   = false;
 
     for (unsigned int i = 0; i < cell->light_source_count; i++) {
         const LightSource *source = cell->light_sources[i];
@@ -92,28 +92,22 @@ Lighting light_source_get_color(const Map *map, const Cell *cell, Point point)
             continue;
         }
 
-        collected_count++;
+        float dist = hypot(source->x - point.x, source->y - point.y);
+        float ratio = dist / source->radius;
 
-        float dist       = hypot(source->x - point.x, source->y - point.y);
-        float brightness = fabs((1 - (dist / (source->radius))) * source->brightness);
+        brightness += fabs((1 - (dist / (source->radius))) * source->brightness);
 
-        lighting.brightness += brightness;
+        if (0 != source->color.a) {
+            lighting.color.r = (lighting.color.r + source->color.r);
+            lighting.color.g = (lighting.color.g + source->color.g);
+            lighting.color.b = (lighting.color.b + source->color.b);
+            lighting.color.a = 255;
 
-        if (first_color) {
-            lighting.color = source->color;
-            first_color    = false;
-
-            continue;
+            has_color = true;
         }
-
-        lighting.color.r = (lighting.color.r + source->color.r);
-        lighting.color.g = (lighting.color.g + source->color.g);
-        lighting.color.b = (lighting.color.b + source->color.b);
     }
 
-    lighting.color.r *= 0.10;
-    lighting.color.g *= 0.10;
-    lighting.color.b *= 0.10;
+    lighting.brightness = max(map->general_brightness, brightness);
 
     return lighting;
 }

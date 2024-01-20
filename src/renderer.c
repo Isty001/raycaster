@@ -283,19 +283,27 @@ static void render_floor_and_ceiling(const RenderContext *ctx)
             int ty = (int)(floor_texture->height * (floor_y - cell_y)) & (floor_texture->height - 1);
 
 
-            if ((int)(floor_x * 10) != (int)(prev_x * 10) || (int)(floor_y * 10) != (int)(prev_y * 10)) {
-                lighting = light_source_get_color(map, cell, point(floor_x, floor_y));
+            if ((int)(floor_y * 10) != (int)(prev_y * 10)) {
+                /* lighting = light_source_get_color(map, cell, point(floor_x, floor_y)); */
             }
 
             prev_x = floor_x;
             prev_y = floor_y;
 
             if (is_floor) {
+                RGBA color = texture_get_color(cell->floor.texture, ty, tx);
+
                 if (lighting.color.a > 0) {
-                    add_pixel(x, y, lighting.color);
-                } else {
-                    add_pixel(x, y, texture_get_color(cell->floor.texture, ty, tx));
+                    int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness;
+                    int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness;
+                    int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness;
+
+                    color.r = min(255, r);
+                    color.g = min(255, g);
+                    color.b = min(255, b);
                 }
+
+                add_pixel(x, y, color);
             } else {
                 if (cell->ceiling.texture) {
                     const Texture *ceiling_texture = cell->ceiling.texture;
@@ -531,19 +539,13 @@ static void render_walls(const RenderContext *ctx)
 
             RGBA color = texture_get_color(texture, texX, texY);
 
-            /* color.r *= 0.25; */
-            /* color.g *= 0.25; */
-            /* color.b *= 0.25; */
+            int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness;
+            int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness;
+            int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness;
 
-            if (0 != lighting.brightness) {
-                int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness;
-                int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness;
-                int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness;
-
-                color.r = min(255, r);
-                color.g = min(255, g);
-                color.b = min(255, b);
-            }
+            color.r = min(255, r);
+            color.g = min(255, g);
+            color.b = min(255, b);
 
             add_pixel(x, y, color);
         }
@@ -560,7 +562,7 @@ static void *render_world(void *arg)
 
 #include <pthread.h>
 
-#define MULTITHREAD 1
+#define MULTITHREAD 0
 
 void render(const Map *map, const Player *player, double frame_duration)
 {
