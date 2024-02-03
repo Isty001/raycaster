@@ -257,7 +257,7 @@ static void render_floor_and_ceiling(const RenderContext *ctx)
         float prev_x = 0;
         float prev_y = 0;
 
-        Lighting lighting = {0};
+        /* Lighting lighting = {0}; */
 
         for (int x = 0; x < WIDTH; ++x) {
             int cell_x = (int)(floor_x);
@@ -288,15 +288,15 @@ static void render_floor_and_ceiling(const RenderContext *ctx)
             if (is_floor) {
                 RGBA color = texture_get_color(cell->floor.texture, ty, tx);
 
-                if (lighting.color.a > 0) {
-                    int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness;
-                    int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness;
-                    int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness;
+                /* if (lighting.color.a > 0) { */
+                /*     int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness; */
+                /*     int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness; */
+                /*     int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness; */
 
-                    color.r = min(255, r);
-                    color.g = min(255, g);
-                    color.b = min(255, b);
-                }
+                /*     color.r = min(255, r); */
+                /*     color.g = min(255, g); */
+                /*     color.b = min(255, b); */
+                /* } */
 
                 add_pixel(x, y, color);
             } else {
@@ -622,7 +622,7 @@ void render(const Map *map, const Player *player, double frame_duration)
 
     glEnd();
 
-    memset(PIXEL_BUFFER, 0, WIDTH * HEIGHT * sizeof(RGBA));
+    /* memset(PIXEL_BUFFER, 0, WIDTH * HEIGHT * sizeof(RGBA)); */
 
     end = glutGet(GLUT_ELAPSED_TIME);
 

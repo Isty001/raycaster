@@ -37,7 +37,7 @@ void texture_load(const char *path);
 
 const Texture *texture_get(int id);
 
-#define texture_get_color(texture, x, y) ((x > (int)texture->width || y > (int)texture->height) ? FALLBACK_COLOR : texture->pixels[y * texture->width + x])
+#define texture_get_color(texture, x, y) ((x > (int)texture->width -1 || y > (int)texture->height - 1) ? FALLBACK_COLOR : texture->pixels[y * texture->width + x])
 
 void texture_cleanup(void);
 
