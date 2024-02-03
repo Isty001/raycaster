@@ -14,8 +14,7 @@ typedef struct {
     unsigned int count;
 } Polygon;
 
-#define CELL_PART_FIELDS                                                                                                                                                                               \
-    const Texture *texture;                                                                                                                                                                            \
+#define CELL_PART_FIELDS const Texture *texture;
 
 typedef struct {
     CELL_PART_FIELDS
@@ -31,8 +30,7 @@ typedef struct {
     CellPart ceiling;
     CellWall wall;
     CellPart floor;
-    const struct LightSource **light_sources;
-    unsigned int light_source_count;
+    struct LightMap *light_map;
 } Cell;
 
 typedef struct {
@@ -57,8 +55,7 @@ typedef struct {
 
 Map *map_load(void);
 
-#define map_get_cell(map, x, y) \
-    (&map->cells[(x > MAP_WIDTH - 1) ? MAP_WIDTH - 1 : (x < 0 ? 0 : x)][(y > MAP_HEIGHT - 1) ? MAP_WIDTH - 1 : (y < 0 ? 0 : y)])
+#define map_get_cell(map, x, y) (&map->cells[(x > MAP_WIDTH - 1) ? MAP_WIDTH - 1 : (x < 0 ? 0 : x)][(y > MAP_HEIGHT - 1) ? MAP_WIDTH - 1 : (y < 0 ? 0 : y)])
 
 void map_cleanup(Map *map);
 

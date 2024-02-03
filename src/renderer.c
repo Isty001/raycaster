@@ -338,10 +338,11 @@ typedef struct {
     bool exists;
     double distance_x;
     double distance_y;
+    double distance;
     double wall_x;
 } PolygonyHit;
 
-static inline PolygonyHit hit_polygon(const Player *player, const Polygon *polygon, const Vector *ray_dir, HitSide side)
+static PolygonyHit hit_polygon(const Player *player, const Polygon *polygon, const Vector *ray_dir, Point cell_point, HitSide side)
 {
     // Extend the ray to make sure it hits the polygon
     double ray_x = player->pos.x + ray_dir->x * 1000.0;
@@ -349,26 +350,30 @@ static inline PolygonyHit hit_polygon(const Player *player, const Polygon *polyg
 
     const LineSegment ray_segment = line_segment(point(player->pos.x, player->pos.y), point(ray_x, ray_y));
 
-    PolygonyHit hit = {.exists = false, .distance_x = 9999999999, .distance_y = 9999999999, .wall_x = 9999999999};
+    PolygonyHit hit = {.exists = false, .distance_x = 9999999999, .distance_y = 9999999999, .wall_x = 9999999999, .distance = 999999999};
 
     for (unsigned int seg_i = 0; seg_i < polygon->count; seg_i++) {
+        // @TODO return the actual line segment hit
         const LineSegment *poly_segment = &polygon->segments[seg_i];
         const Intersection intersection = line_segment_intersection(&ray_segment, poly_segment);
 
         if (intersection.exists) {
             hit.exists = true;
 
+            hit.distance = min(hit.distance, hypot(player->pos.x - intersection.point.x, player->pos.y - intersection.point.y));
+
+            float dist;
+
             if (side == SIDE_HORIZONTAL) {
-                double dist = fabs(player->pos.x > 17.1 ? ceil(17.1) - intersection.point.x : floor(17.1) - intersection.point.x);
-
-                hit.distance_x = min(hit.distance_x, dist);
+                dist = fabs(player->pos.x > cell_point.x ? ceil(cell_point.x + 0.001) - intersection.point.x : floor(cell_point.x) - intersection.point.x);
             } else {
-                double dist = fabs(player->pos.y > 4 ? ceil(4.5) - intersection.point.y : floor(4.5) - intersection.point.y);
-
-                hit.distance_y = min(hit.distance_y, dist);
+                dist = fabs(player->pos.y > cell_point.y ? ceil(cell_point.y + 0.0001) - intersection.point.y : floor(cell_point.y) - intersection.point.y);
             }
 
-            hit.wall_x = min(hit.wall_x, hypot(poly_segment->start.x - intersection.point.x, poly_segment->start.y - intersection.point.y));
+            if (dist < hit.distance) {
+                hit.distance = dist;
+                hit.wall_x = hypot(poly_segment->start.x - intersection.point.x, poly_segment->start.y - intersection.point.y);
+            }
         }
     }
 
@@ -425,8 +430,15 @@ static void render_walls(const RenderContext *ctx)
         }
 
         const Cell *cell;
+        PolygonyHit hit;
 
-        double wallX;
+        // Calculate distance projected on camera direction. This is the shortest distance from the point where the wall is
+        // hit to the camera plane. Euclidean to center camera point would give fisheye effect!
+        // This can be computed as (mapX - posX + (1 - stepX) / 2) / rayDirX for side == 0, or same formula with Y
+        // for size == 1, but can be simplified to the code below thanks to how sideDist and deltaDist are computed:
+        // because they were left scaled to |rayDir|. sideDist is the entire length of the ray above after the multiple
+        // steps, but we subtract deltaDist once because one step more into the wall was taken above.
+        double perpWallDist;
 
         // perform DDA
         while (1) {
@@ -446,32 +458,24 @@ static void render_walls(const RenderContext *ctx)
             // Check if ray has hit a wall
             if (false == cell->wall.empty) {
                 if (cell->wall.polygon) {
-                    PolygonyHit hit = hit_polygon(player, cell->wall.polygon, &ray_dir, side);
+                    PolygonyHit hit = hit_polygon(player, cell->wall.polygon, &ray_dir, point(mapX, mapY), side);
 
-                    if (hit.exists) {
-                        side_dist_x += ray_unit_step_size_x * hit.distance_x;
-                        side_dist_y += ray_unit_step_size_y * hit.distance_y;
-                        wallX = hit.wall_x;
-                    } else {
+                    if (!hit.exists) {
                         continue;
                     }
+
+                    if (side == SIDE_HORIZONTAL) {
+                        perpWallDist = ((side_dist_x + ray_unit_step_size_x * hit.distance) - ray_unit_step_size_x);
+                    } else {
+                        perpWallDist = ((side_dist_y + ray_unit_step_size_y * hit.distance) - ray_unit_step_size_y);
+
+                    }
+                    side_dist_x += ray_unit_step_size_x * hit.distance;
+                    side_dist_y += ray_unit_step_size_y * hit.distance;
                 }
+
                 break;
             }
-        }
-
-        // Calculate distance projected on camera direction. This is the shortest distance from the point where the wall is
-        // hit to the camera plane. Euclidean to center camera point would give fisheye effect!
-        // This can be computed as (mapX - posX + (1 - stepX) / 2) / rayDirX for side == 0, or same formula with Y
-        // for size == 1, but can be simplified to the code below thanks to how sideDist and deltaDist are computed:
-        // because they were left scaled to |rayDir|. sideDist is the entire length of the ray above after the multiple
-        // steps, but we subtract deltaDist once because one step more into the wall was taken above.
-        double perpWallDist;
-
-        if (side == SIDE_HORIZONTAL) {
-            perpWallDist = (side_dist_x - ray_unit_step_size_x);
-        } else {
-            perpWallDist = (side_dist_y - ray_unit_step_size_y);
         }
 
         ZBuffer[x] = perpWallDist; // perpendicular distance is used
@@ -497,28 +501,8 @@ static void render_walls(const RenderContext *ctx)
         // texturing calculations
         const Texture *texture = cell->wall.texture; // 1 subtracted from it so that texture 0 can be used!
 
-        // calculate value of wallX
-        if (!cell->wall.polygon) {
-            if (side == SIDE_HORIZONTAL) {
-                wallX = player->pos.y + perpWallDist * ray_dir.y;
-            } else {
-                wallX = player->pos.x + perpWallDist * ray_dir.x;
-            }
-
-            wallX -= floor((wallX));
-        }
-
         // x coordinate on the texture
-        int texX = (int)(wallX * (double)texture->width);
-
-        if (!cell->wall.polygon) {
-            // Rotate the the texture according to where it is viewed from
-            if (side == SIDE_HORIZONTAL && ray_dir.x > 0) {
-                texX = texture->width - texX - 1;
-            } else if (side == SIDE_VERTICAL && ray_dir.y < 0) {
-                texX = texture->width - texX - 1;
-            }
-        }
+        int texX = (int)(hit.wall_x * (double)texture->width);
 
         // How much to increase the texture coordinate per screen pixel
         float step = (float)texture->height / lineHeight;
@@ -530,7 +514,7 @@ static void render_walls(const RenderContext *ctx)
         float ray_x = player->pos.x + ray_dir.x * perpWallDist;
         float ray_y = player->pos.y + ray_dir.y * perpWallDist;
 
-        Lighting lighting = light_source_get_color(map, cell, point(ray_x, ray_y));
+        /* Lighting lighting = light_source_get_color(map, cell, point(ray_x, ray_y)); */
 
         for (int y = drawStart; y < drawEnd; y++) {
             int texY = (int)texPos;
@@ -539,13 +523,13 @@ static void render_walls(const RenderContext *ctx)
 
             RGBA color = texture_get_color(texture, texX, texY);
 
-            int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness;
-            int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness;
-            int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness;
+            /* int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness; */
+            /* int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness; */
+            /* int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness; */
 
-            color.r = min(255, r);
-            color.g = min(255, g);
-            color.b = min(255, b);
+            /* color.r = min(255, r); */
+            /* color.g = min(255, g); */
+            /* color.b = min(255, b); */
 
             add_pixel(x, y, color);
         }
