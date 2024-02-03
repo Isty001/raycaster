@@ -208,16 +208,11 @@ static void render_floor_and_ceiling(const RenderContext *ctx)
     float cam_z_floor   = half_height + player->camera.z;
     float cam_z_ceiling = half_height - player->camera.z;
 
-/*     int top    = half_height - smallest_wall / 2.0 + player->camera.pitch + player->camera.z; */
-/*     int bottom = half_height + smallest_wall / 2.0 + player->camera.pitch + player->camera.z; */
-
-    /* printf("top: %d, bottom: %d\n", top, bottom); */
-
     const Texture *sky_texture = map->sky_texture;
     float sky_angle_ratio      = player->direction.angle * (sky_texture->width / 360.0);
 
     // FLOOR CASTING
-    for (int y = ctx->ceiling_from_height; y < ctx->ceiling_to_height; ++y) {
+    for (unsigned int y = ctx->ceiling_from_height; y < ctx->ceiling_to_height; ++y) {
         /* if (y < bottom && y > top) { */
         /*     continue; */
         /* } */
@@ -385,7 +380,7 @@ static void render_walls(const RenderContext *ctx)
     const Map *map = ctx->map;
     const Player *player = ctx->player;
 
-    for (int x = ctx->walls_from_width; x < ctx->walls_to_width; x++) {
+    for (unsigned int x = ctx->walls_from_width; x < ctx->walls_to_width; x++) {
         // Calculate ray position and direction
         // The right side of the screen will get coordinate 1, the center of the screen gets coordinate 0, and the left side of the screen gets coordinate
         // The direction the the ray is the sum of the direction vector and a part of the plane vector.
@@ -430,7 +425,7 @@ static void render_walls(const RenderContext *ctx)
         }
 
         const Cell *cell;
-        PolygonyHit hit;
+        PolygonyHit hit = {0};
 
         // Calculate distance projected on camera direction. This is the shortest distance from the point where the wall is
         // hit to the camera plane. Euclidean to center camera point would give fisheye effect!
@@ -458,7 +453,7 @@ static void render_walls(const RenderContext *ctx)
             // Check if ray has hit a wall
             if (false == cell->wall.empty) {
                 if (cell->wall.polygon) {
-                    PolygonyHit hit = hit_polygon(player, cell->wall.polygon, &ray_dir, point(mapX, mapY), side);
+                    hit = hit_polygon(player, cell->wall.polygon, &ray_dir, point(mapX, mapY), side);
 
                     if (!hit.exists) {
                         continue;
@@ -511,8 +506,8 @@ static void render_walls(const RenderContext *ctx)
         float texPos = (drawStart - player->camera.pitch - (player->camera.z / perpWallDist) - HEIGHT / 2.0 + lineHeight / 2.0) * step;
 
         // TODO: calculate only once, see: hit_polygon()
-        float ray_x = player->pos.x + ray_dir.x * perpWallDist;
-        float ray_y = player->pos.y + ray_dir.y * perpWallDist;
+        /* float ray_x = player->pos.x + ray_dir.x * perpWallDist; */
+        /* float ray_y = player->pos.y + ray_dir.y * perpWallDist; */
 
         /* Lighting lighting = light_source_get_color(map, cell, point(ray_x, ray_y)); */
 
@@ -551,8 +546,6 @@ static void *render_world(void *arg)
 void render(const Map *map, const Player *player, double frame_duration)
 {
     int start = glutGet(GLUT_ELAPSED_TIME);
-
-    int smallest_wall = HEIGHT;
 
     memset(PIXEL_BUFFER, 0, WIDTH * HEIGHT * sizeof(RGBA));
 

@@ -130,7 +130,7 @@ void control_motion(int x, int y)
     }
 
     Player *player        = state_get()->player;
-    float frame_duration  = state_get()->frame_duration;
+    float frame_duration  = (float) state_get()->frame_duration;
     double rotation_speed = player->speed.rotation * (frame_duration / 2);
 
     if (Keys.a == KEY_DOWN || Keys.d == KEY_DOWN) {
