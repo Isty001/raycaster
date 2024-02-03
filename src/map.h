@@ -2,7 +2,7 @@
 #define MAP_H
 
 #include "texture.h"
-#include "util.h"
+#include "geometry.h"
 #include <stdbool.h>
 #include <stdint.h>
 

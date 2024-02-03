@@ -1,5 +1,6 @@
 #include "control.h"
 #include "state.h"
+#include "geometry.h"
 #include "util.h"
 #include <GL/freeglut.h>
 #include <math.h>

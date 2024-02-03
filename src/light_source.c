@@ -1,5 +1,5 @@
 #include "light_source.h"
-#include "util.h"
+#include "geometry.h"
 #include <math.h>
 
 #include <stdio.h>

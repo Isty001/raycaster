@@ -1,6 +1,6 @@
 #include "map.h"
 #include "light_source.h"
-#include "util.h"
+#include "geometry.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

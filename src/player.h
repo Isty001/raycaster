@@ -1,7 +1,7 @@
 #ifndef PLAYER
 #define PLAYER
 
-#include "util.h"
+#include "geometry.h"
 
 typedef struct {
     struct {

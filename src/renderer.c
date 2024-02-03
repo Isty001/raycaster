@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include "light_source.h"
 #include "map.h"
+#include "geometry.h"
 #include "util.h"
 // clang-format off
 #include <GL/glew.h>
