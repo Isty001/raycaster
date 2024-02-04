@@ -17,11 +17,7 @@ typedef struct {
     float y;
 } Point;
 
-#define point(_x, _y)                                                                                                                                                                                  \
-    (Point)                                                                                                                                                                                            \
-    {                                                                                                                                                                                                  \
-        .x = (_x), .y = (_y)                                                                                                                                                                           \
-    }
+#define point(_x, _y) ((Point){.x = (_x), .y = (_y)})
 
 #define point_move(p, v) point(p.x + v.x, p.y + v.y)
 
