@@ -13,10 +13,7 @@ typedef struct {
         double pitch;
         double z;
     } camera;
-    struct {
-        double x;
-        double y;
-    } pos;
+    Point pos;
     struct {
         double movement;
         double rotation;

@@ -1,5 +1,6 @@
 #include "texture.h"
 #include "../vendor/tinydir/tinydir.h"
+#include "light_source.h"
 #include <stdint.h>
 #include <stdio.h>
 

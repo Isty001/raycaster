@@ -9,28 +9,23 @@
 #define MAP_WIDTH 24
 #define MAP_HEIGHT 24
 
-typedef struct {
-    const LineSegment *segments;
-    unsigned int count;
-} Polygon;
-
-#define CELL_PART_FIELDS const Texture *texture;
 
 typedef struct {
-    CELL_PART_FIELDS
-} CellPart;
+    const Texture *texture;
+    struct LightMap *light_map;
+    bool empty;
+} VerticalCellPart;
 
 typedef struct {
-    CELL_PART_FIELDS
+    const Texture *texture;
     const Polygon *polygon;
     bool empty;
 } CellWall;
 
 typedef struct {
-    CellPart ceiling;
+    VerticalCellPart ceiling;
     CellWall wall;
-    CellPart floor;
-    struct LightMap *light_map;
+    VerticalCellPart floor;
 } Cell;
 
 typedef struct {

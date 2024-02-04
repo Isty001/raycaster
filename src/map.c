@@ -1,6 +1,6 @@
 #include "map.h"
-#include "light_source.h"
 #include "geometry.h"
+#include "light_source.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,16 +121,16 @@ static Sprite sprites[numSprites] = {
     {.x = 10.5, .y = 15.8, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
 };
 
-static LineSegment SEGMENTS[] = {
-    {.start = point(17, 4.0), .end = point(17, 5.0)},
-    /* {.start = point(17, 5), .end = point(18, 5)}, */
-    {.start = point(18, 5), .end = point(18, 4)},
-    /* {.start = point(18, 4), .end = point(17, 4)}, */
+static PolygonSegment POLYGON_SEGMENTS[] = {
+    {.line = {.start = point(17, 4.0), .end = point(17, 4.5)}, .light_map = NULL},
+    /* {.line = {.start = point(17, 5), .end = point(18, 5)}, .light_map = NULL} */
+    {.line = {.start = point(18, 5), .end = point(18, 4)}, .light_map = NULL}
+    /* {.line = {.start = point(18, 4), .end = point(17, 4)}, .light_map = NULL} */
 };
 
 static Polygon POLYGON = {
-    .count    = 2,
-    .segments = SEGMENTS,
+    .segment_count = 2,
+    .segments      = POLYGON_SEGMENTS,
 };
 
 static void load_sprites(Map *map)
@@ -158,7 +158,6 @@ Map *map_load(void)
 
         for (int y = 0; y < MAP_HEIGHT; y++) {
             map->cells[x][y].wall.texture = texture_get(worldMap[x][y]);
-            map->cells[x][y].light_map    = NULL;
 
             if (worldMap[x][y] == 0) {
                 map->cells[x][y].wall.empty = true;
@@ -167,34 +166,48 @@ Map *map_load(void)
             }
 
             if (x == 17 && y == 4) {
+                for (unsigned int pi = 0; pi < POLYGON.segment_count; pi++) {
+                    ((PolygonSegment *)POLYGON.segments)[pi].light_map = calloc(1, sizeof(LightMap));
+                }
+
                 map->cells[x][y].wall.polygon = &POLYGON;
             } else {
-                Point bottom_left  = point(x, y);
-                Point bottom_right = point(x, y + 1);
+                if (false == map->cells[x][y].wall.empty) {
+                    Point bottom_left  = point(x, y);
+                    Point bottom_right = point(x, y + 1);
 
-                Point top_right = point(x + 1, y + 1);
-                Point top_left  = point(x + 1, y);
+                    Point top_right = point(x + 1, y + 1);
+                    Point top_left  = point(x + 1, y);
 
-                Polygon *polygon = malloc(sizeof(Polygon));
-                polygon->count   = 4;
+                    Polygon *polygon       = malloc(sizeof(Polygon));
+                    polygon->segment_count = 4;
 
-                LineSegment *segments = malloc(4 * sizeof(LineSegment));
+                    PolygonSegment *segments = malloc(4 * sizeof(PolygonSegment));
 
-                segments[0] = line_segment(bottom_left, bottom_right);
-                segments[1] = line_segment(bottom_right, top_right);
-                segments[2] = line_segment(top_right, top_left);
-                segments[3] = line_segment(top_left, bottom_left);
+                    segments[0] = (PolygonSegment){.line = line_segment(bottom_left, bottom_right), .light_map = calloc(1, sizeof(LightMap))};
+                    segments[1] = (PolygonSegment){.line = line_segment(bottom_right, top_right), .light_map = calloc(1, sizeof(LightMap))};
+                    segments[2] = (PolygonSegment){.line = line_segment(top_right, top_left), .light_map = calloc(1, sizeof(LightMap))};
+                    segments[3] = (PolygonSegment){.line = line_segment(top_left, bottom_left), .light_map = calloc(1, sizeof(LightMap))};
 
-                polygon->segments = segments;
+                    polygon->segments = segments;
 
-                map->cells[x][y].wall.polygon = polygon;
+                    map->cells[x][y].wall.polygon = polygon;
+                } else {
+                    map->cells[x][y].wall.polygon = NULL;
+                }
             }
 
             map->cells[x][y].floor.texture   = texture_get(7);
-            map->cells[x][y].ceiling.texture = texture_get(3);
+            map->cells[x][y].floor.empty     = false;
+            map->cells[x][y].floor.light_map = calloc(1, sizeof(LightMap));
+
+            map->cells[x][y].ceiling.texture   = texture_get(3);
+            map->cells[x][y].ceiling.empty     = false;
+            map->cells[x][y].ceiling.light_map = calloc(1, sizeof(LightMap));
 
             if (CEILING_MAP[x][y] == 2) {
                 map->cells[x][y].ceiling.texture = NULL;
+                map->cells[x][y].ceiling.empty   = true;
             }
         }
     }
@@ -210,12 +223,22 @@ void map_cleanup(Map *map)
 {
     for (int x = 0; x < MAP_WIDTH; x++) {
         for (int y = 0; y < MAP_HEIGHT; y++) {
-            free(map->cells[x][y].light_map);
+            Cell *cell = &map->cells[x][y];
 
-            if (&POLYGON != map->cells[x][y].wall.polygon) {
-                free((void *) map->cells[x][y].wall.polygon->segments);
-                free((void *) map->cells[x][y].wall.polygon);
+            if (cell->wall.polygon) {
+                if (&POLYGON != cell->wall.polygon) {
+
+                    for (int si = 0; si < cell->wall.polygon->segment_count; si++) {
+                        light_map_cleanup(cell->wall.polygon->segments[si].light_map);
+                    }
+
+                    free((void *)cell->wall.polygon->segments);
+                    free((void *)cell->wall.polygon);
+                }
             }
+
+            light_map_cleanup(cell->ceiling.light_map);
+            light_map_cleanup(cell->floor.light_map);
         }
 
         free(map->cells[x]);

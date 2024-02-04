@@ -1,7 +1,7 @@
 #include "renderer.h"
+#include "geometry.h"
 #include "light_source.h"
 #include "map.h"
-#include "geometry.h"
 #include "util.h"
 // clang-format off
 #include <GL/glew.h>
@@ -10,11 +10,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-
-typedef enum {
-    SIDE_HORIZONTAL = 0,
-    SIDE_VERTICAL   = 1,
-} HitSide;
 
 #define numSprites 19
 
@@ -196,7 +191,7 @@ typedef struct {
 static void render_floor_and_ceiling(const RenderContext *ctx)
 {
     const Player *player = ctx->player;
-    const Map *map = ctx->map;
+    const Map *map       = ctx->map;
 
     // rayDir for leftmost ray (x = 0) and rightmost ray (x = w)
     float ray_dir_x_0 = player->direction.vector.x - player->camera.plane.x;
@@ -278,7 +273,6 @@ static void render_floor_and_ceiling(const RenderContext *ctx)
             int tx = (int)(floor_texture->width * (floor_x - cell_x)) & (floor_texture->width - 1);
             int ty = (int)(floor_texture->height * (floor_y - cell_y)) & (floor_texture->height - 1);
 
-
             if ((int)(floor_y * 10) != (int)(prev_y * 10)) {
                 /* lighting = light_source_get_color(map, cell, point(floor_x, floor_y)); */
             }
@@ -330,55 +324,9 @@ static void render_floor_and_ceiling(const RenderContext *ctx)
     }
 }
 
-typedef struct {
-    bool exists;
-    double distance_x;
-    double distance_y;
-    double distance;
-    double wall_x;
-} PolygonyHit;
-
-static PolygonyHit hit_polygon(const Player *player, const Polygon *polygon, const Vector *ray_dir, Point cell_point, HitSide side)
-{
-    // Extend the ray to make sure it hits the polygon
-    double ray_x = player->pos.x + ray_dir->x * 1000.0;
-    double ray_y = player->pos.y + ray_dir->y * 1000.0;
-
-    const LineSegment ray_segment = line_segment(point(player->pos.x, player->pos.y), point(ray_x, ray_y));
-
-    PolygonyHit hit = {.exists = false, .distance_x = 9999999999, .distance_y = 9999999999, .wall_x = 9999999999, .distance = 999999999};
-
-    for (unsigned int seg_i = 0; seg_i < polygon->count; seg_i++) {
-        // @TODO return the actual line segment hit
-        const LineSegment *poly_segment = &polygon->segments[seg_i];
-        const Intersection intersection = line_segment_intersection(&ray_segment, poly_segment);
-
-        if (intersection.exists) {
-            hit.exists = true;
-
-            hit.distance = min(hit.distance, hypot(player->pos.x - intersection.point.x, player->pos.y - intersection.point.y));
-
-            float dist;
-
-            if (side == SIDE_HORIZONTAL) {
-                dist = fabs(player->pos.x > cell_point.x ? ceil(cell_point.x + 0.001) - intersection.point.x : floor(cell_point.x) - intersection.point.x);
-            } else {
-                dist = fabs(player->pos.y > cell_point.y ? ceil(cell_point.y + 0.0001) - intersection.point.y : floor(cell_point.y) - intersection.point.y);
-            }
-
-            if (dist < hit.distance) {
-                hit.distance = dist;
-                hit.wall_x = hypot(poly_segment->start.x - intersection.point.x, poly_segment->start.y - intersection.point.y);
-            }
-        }
-    }
-
-    return hit;
-}
-
 static void render_walls(const RenderContext *ctx)
 {
-    const Map *map = ctx->map;
+    const Map *map       = ctx->map;
     const Player *player = ctx->player;
 
     for (unsigned int x = ctx->walls_from_width; x < ctx->walls_to_width; x++) {
@@ -407,7 +355,7 @@ static void render_walls(const RenderContext *ctx)
         double step_x;
         double step_y;
 
-        HitSide side; // was a NS or a EW wall hit?
+        CellSide side; // was a NS or a EW wall hit?
 
         // calculate step and initial sideDist
         if (ray_dir.x < 0) {
@@ -454,20 +402,19 @@ static void render_walls(const RenderContext *ctx)
             // Check if ray has hit a wall
             if (false == cell->wall.empty) {
                 if (cell->wall.polygon) {
-                    hit = hit_polygon(player, cell->wall.polygon, &ray_dir, point(mapX, mapY), side);
+                    hit = polygon_hit(player->pos, cell->wall.polygon, &ray_dir, point(mapX, mapY), side);
 
                     if (!hit.exists) {
                         continue;
                     }
 
                     if (side == SIDE_HORIZONTAL) {
-                        perpWallDist = ((side_dist_x + ray_unit_step_size_x * hit.distance) - ray_unit_step_size_x);
+                        perpWallDist = ((side_dist_x + ray_unit_step_size_x * hit.rel_distance) - ray_unit_step_size_x);
                     } else {
-                        perpWallDist = ((side_dist_y + ray_unit_step_size_y * hit.distance) - ray_unit_step_size_y);
-
+                        perpWallDist = ((side_dist_y + ray_unit_step_size_y * hit.rel_distance) - ray_unit_step_size_y);
                     }
-                    side_dist_x += ray_unit_step_size_x * hit.distance;
-                    side_dist_y += ray_unit_step_size_y * hit.distance;
+                    side_dist_x += ray_unit_step_size_x * hit.rel_distance;
+                    side_dist_y += ray_unit_step_size_y * hit.rel_distance;
                 }
 
                 break;
@@ -506,12 +453,6 @@ static void render_walls(const RenderContext *ctx)
         // Starting texture coordinate
         float texPos = (drawStart - player->camera.pitch - (player->camera.z / perpWallDist) - HEIGHT / 2.0 + lineHeight / 2.0) * step;
 
-        // TODO: calculate only once, see: hit_polygon()
-        /* float ray_x = player->pos.x + ray_dir.x * perpWallDist; */
-        /* float ray_y = player->pos.y + ray_dir.y * perpWallDist; */
-
-        /* Lighting lighting = light_source_get_color(map, cell, point(ray_x, ray_y)); */
-
         for (int y = drawStart; y < drawEnd; y++) {
             int texY = (int)texPos;
 
@@ -519,13 +460,26 @@ static void render_walls(const RenderContext *ctx)
 
             RGBA color = texture_get_color(texture, texX, texY);
 
-            /* int r = (color.r * 0.90 + lighting.color.r) * lighting.brightness; */
-            /* int g = (color.g * 0.90 + lighting.color.g) * lighting.brightness; */
-            /* int b = (color.b * 0.90 + lighting.color.b) * lighting.brightness; */
+            if (hit.intersected_segment->light_map) {
+                const LightMap *light_map = hit.intersected_segment->light_map;
 
-            /* color.r = min(255, r); */
-            /* color.g = min(255, g); */
-            /* color.b = min(255, b); */
+                if (light_map->colors) {
+                    /* RGBA light_color = light_map->colors[texX * texture->height + texY]; */
+                    /* float brightness = light_map->brightness[texX * texture->height + texY]; */
+
+                    /* int r = (((color.r) + light_color.r) * 0.5) * brightness; */
+                    /* int g = (((color.g) + light_color.g) * 0.5) * brightness; */
+                    /* int b = (((color.b) + light_color.b) * 0.5) * brightness; */
+
+                    /* color.r = min(255, r); */
+                    /* color.g = min(255, g); */
+                    /* color.b = min(255, b); */
+
+                    /* color = light_color; */
+                } else {
+                    /* color = (RGBA){0, 0, 0, 255}; */
+                }
+            }
 
             add_pixel(x, y, color);
         }
@@ -554,38 +508,17 @@ void render(const Map *map, const Player *player, double frame_duration)
     pthread_t thread1;
     pthread_t thread2;
 
-    RenderContext left_ctx = {
-        .map = map,
-        .player = player,
-        .walls_from_width = 0,
-        .walls_to_width = WIDTH * 0.5,
-        .ceiling_from_height = 0,
-        .ceiling_to_height = HEIGHT * 0.5
-    };
+    RenderContext left_ctx = {.map = map, .player = player, .walls_from_width = 0, .walls_to_width = WIDTH * 0.5, .ceiling_from_height = 0, .ceiling_to_height = HEIGHT * 0.5};
 
-    RenderContext right_ctx = {
-        .map = map,
-        .player = player,
-        .walls_from_width = WIDTH * 0.5,
-        .walls_to_width = WIDTH,
-        .ceiling_from_height = HEIGHT * 0.5,
-        .ceiling_to_height = HEIGHT
-    };
+    RenderContext right_ctx = {.map = map, .player = player, .walls_from_width = WIDTH * 0.5, .walls_to_width = WIDTH, .ceiling_from_height = HEIGHT * 0.5, .ceiling_to_height = HEIGHT};
 
-    pthread_create(&thread1, NULL, render_world, (void *) &left_ctx);
-    pthread_create(&thread2, NULL, render_world, (void *) &right_ctx);
+    pthread_create(&thread1, NULL, render_world, (void *)&left_ctx);
+    pthread_create(&thread2, NULL, render_world, (void *)&right_ctx);
 
-    pthread_join(thread1,NULL);
-    pthread_join(thread2,NULL);
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
 #else
-    RenderContext all_ctx = {
-        .map = map,
-        .player = player,
-        .walls_from_width = 0,
-        .walls_to_width = WIDTH,
-        .ceiling_from_height = 0,
-        .ceiling_to_height = HEIGHT
-    };
+    RenderContext all_ctx = {.map = map, .player = player, .walls_from_width = 0, .walls_to_width = WIDTH, .ceiling_from_height = 0, .ceiling_to_height = HEIGHT};
 
     render_world(&all_ctx);
 #endif
