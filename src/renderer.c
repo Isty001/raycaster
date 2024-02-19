@@ -384,8 +384,13 @@ static void render_walls(const RenderContext *ctx)
         // steps, but we subtract deltaDist once because one step more into the wall was taken above.
         double perpWallDist;
 
+        int depth = 0;
         // perform DDA
         while (1) {
+            // TODO handle max depth properly
+            if (30 == depth) {
+                goto next;
+            }
             // jump to next map square, either in x-direction, or in y-direction
             // depending on which one is the shorter
             if (side_dist_x < side_dist_y) {
@@ -399,6 +404,8 @@ static void render_walls(const RenderContext *ctx)
             }
             cell = map_get_cell(map, (int)(mapX), (int)(mapY));
 
+            depth++;
+
             // Check if ray has hit a wall
             if (false == cell->wall.empty) {
                 if (cell->wall.polygon) {
@@ -409,16 +416,17 @@ static void render_walls(const RenderContext *ctx)
                     }
 
                     if (side == SIDE_HORIZONTAL) {
-                        perpWallDist = ((side_dist_x + ray_unit_step_size_x * hit.rel_distance) - ray_unit_step_size_x);
+                        perpWallDist = ((side_dist_x + ray_unit_step_size_x * hit.rel_dist) - ray_unit_step_size_x);
                     } else {
-                        perpWallDist = ((side_dist_y + ray_unit_step_size_y * hit.rel_distance) - ray_unit_step_size_y);
+                        perpWallDist = ((side_dist_y + ray_unit_step_size_y * hit.rel_dist) - ray_unit_step_size_y);
                     }
-                    side_dist_x += ray_unit_step_size_x * hit.rel_distance;
-                    side_dist_y += ray_unit_step_size_y * hit.rel_distance;
+                    side_dist_x += ray_unit_step_size_x * hit.rel_dist;
+                    side_dist_y += ray_unit_step_size_y * hit.rel_dist;
                 }
 
                 break;
             }
+
         }
 
         ZBuffer[x] = perpWallDist; // perpendicular distance is used
@@ -463,8 +471,21 @@ static void render_walls(const RenderContext *ctx)
             if (hit.intersected_segment->light_map) {
                 const LightMap *light_map = hit.intersected_segment->light_map;
 
+                const LineSegment *line = &hit.intersected_segment->line;
+
                 if (light_map->colors) {
-                    /* RGBA light_color = light_map->colors[texX * texture->height + texY]; */
+
+                    RGBA light_color = light_map->colors[texX * texture->height + texY];
+
+                    if (0 == light_color.r && 0 == light_color.g && 0 == light_color.b) {
+                        if (20 == (int)mapX && 7 == (int)mapY) {
+                            /* printf("mapX: %f mapY: %f texX: %d texY: %d\n", mapX, mapY, texX, texY); */
+                            /* exit(0); */
+                        }
+                    } else {
+                        color = light_color;
+                    }
+
                     /* float brightness = light_map->brightness[texX * texture->height + texY]; */
 
                     /* int r = (((color.r) + light_color.r) * 0.5) * brightness; */
@@ -474,15 +495,20 @@ static void render_walls(const RenderContext *ctx)
                     /* color.r = min(255, r); */
                     /* color.g = min(255, g); */
                     /* color.b = min(255, b); */
-
-                    /* color = light_color; */
                 } else {
+                    if (20 == (int)mapX && 7 == (int)mapY) {
+                        /* const LineSegment *line = &hit.intersected_segment->line; */
+
+                        /* printf("start.x: %f start.y: %f | end.x: %f end.y: %f\n", line->start.x, line->start.y, line->end.x, line->end.y); */
+                    }
+
                     /* color = (RGBA){0, 0, 0, 255}; */
                 }
             }
 
             add_pixel(x, y, color);
         }
+next:;
     }
 }
 

@@ -19,26 +19,26 @@ static RayCastResult ray_cast_to_point(const Map *map, const LightSource *source
         return result;
     }
 
-    Vector ray_dir = vector((source->x + 0.001) - point.x, source->y - point.y);
+    Vector ray_dir = vector(source->x - point.x, source->y - point.y);
 
     // Make sure to always start from the outside of the current Cell
-    if (ray_dir.y < 0) {
-        point.y += 0.0001;
-    } else {
-        point.y -= 0.0001;
-    }
+    /* if (ray_dir.y < 0) { */
+    /*     point.y += 0.00001; */
+    /* } else { */
+    /*     point.y -= 0.00001; */
+    /* } */
 
-    if (ray_dir.x < 0) {
-        point.x += 0.0001;
-    } else {
-        point.x -= 0.0001;
-    }
+    /* if (ray_dir.x < 0) { */
+    /*     point.x += 0.00001; */
+    /* } else { */
+    /*     point.x -= 0.00001; */
+    /* } */
 
     ray_dir = vector(source->x - point.x, source->y - point.y);
-    /* ray_dir.x += 0.001; */
-    /* ray_dir.y += 0.001; */
 
-    /* printf("ray_dir.x: %f, ray_dir.y: %f\n", ray_dir.x, ray_dir.y); */
+    // Prevents the ray from keep going in a single direction, and miss the source cell
+    ray_dir.x += 0.001;
+    ray_dir.y += 0.001;
 
     double ray_unit_step_size_x = (point.x == 0) ? 1e30 : fabs(1.0 / ray_dir.x); // 1e30 -> prevent divsion by zero
     double ray_unit_step_size_y = (point.y == 0) ? 1e30 : fabs(1.0 / ray_dir.y);
@@ -97,7 +97,7 @@ typedef struct {
 typedef struct LightMapCache {
     LightMap *light_map;
     RGBAList *color_lists;
-    float *brightness;
+    double *brightness;
     struct LightMapCache *next;
     const Texture *texture;
 } LightMapCache;
@@ -110,7 +110,7 @@ static LightMapCache *append_to_cache(LightMap *light_map, const Texture *textur
     cache->light_map     = light_map;
     cache->texture       = texture;
     cache->color_lists   = calloc(1, texture->width * texture->height * sizeof(RGBAList));
-    cache->brightness    = calloc(1, texture->width * texture->height * sizeof(float));
+    cache->brightness    = calloc(1, texture->width * texture->height * sizeof(double));
     cache->next          = NULL;
 
     if (NULL == LIGHT_MAP_CACHE_LIST) {
@@ -156,12 +156,12 @@ static void apply_light_source_to_polygon(const Map *map, const LightSource *sou
             RayCastResult result = ray_cast_to_point(map, source, point);
 
             if (result.available) {
-                Vector vector   = vector(point.x - source->x, point.y - source->y);
+                Vector vector = vector(point.x - source->x, point.y - source->y);
                 PolygonyHit hit = polygon_hit(point(source->x, source->y), cell->wall.polygon, &vector, cell_point, result.side);
 
-                if (hit.intersected_segment == poly_segment) {
-                    float dist       = hypot(source->x - point.x, source->y - point.y);
-                    float brightness = fabs((1 - (dist / (source->radius))) * source->brightness);
+                if (hit.exists && hit.intersected_segment == poly_segment) {
+                    double dist       = hypot(source->x - point.x, source->y - point.y);
+                    double brightness = fabs((1 - (dist / (source->radius))) * source->brightness);
 
                     for (unsigned int y = 0; y < texture->height; y++) {
                         LightMapCache *cache = get_cache(poly_segment->light_map, texture);
@@ -202,22 +202,20 @@ static void compile_light_maps(void)
         LightMap *light_map    = cache->light_map;
 
         if (NULL == light_map->brightness) {
-            light_map->brightness = calloc(1, texture->width * texture->height * sizeof(float));
+            light_map->brightness = calloc(1, texture->width * texture->height * sizeof(double));
         }
 
         if (NULL == light_map->colors) {
             light_map->colors = calloc(1, texture->width * texture->height * sizeof(RGBA));
         }
 
-        printf("compiled: %p\n", light_map);
-
         for (unsigned int x = 0; x < texture->width; x++) {
             for (unsigned int y = 0; y < texture->height; y++) {
                 unsigned int position = x * texture->height + y;
 
-                RGBAList list    = cache->color_lists[position];
-                float brightness = cache->brightness[position];
-                float ratio      = 1.0 / list.color_count;
+                RGBAList list     = cache->color_lists[position];
+                double brightness = cache->brightness[position];
+                double ratio      = 1.0 / list.color_count;
 
                 unsigned int r = 0, g = 0, b = 0;
 
@@ -249,10 +247,10 @@ static void compile_light_maps(void)
 
 void light_map_generate(Map *map)
 {
-    map->light_source_count = 1;
+    map->light_source_count = 2;
     map->light_sources      = malloc(map->light_source_count * sizeof(LightSource));
     map->light_sources[0]   = (LightSource){.x = 20.0, .y = 6.7, .radius = 4, .brightness = 2, .color = (RGBA){.r = 255, .g = 0, .b = 0, .a = 255}};
-    /* map->light_sources[1]   = (LightSource){.x = 21.0, .y = 3.0, .radius = 3.0, .brightness = 2, .color = (RGBA){.r = 0, .g = 255, .b = 0, .a = 255}}; */
+    map->light_sources[1] = (LightSource){.x = 21.0, .y = 3.0, .radius = 3.0, .brightness = 2, .color = (RGBA){.r = 0, .g = 255, .b = 0, .a = 255}};
 
     for (int i = 0; i < map->light_source_count; i++) {
         const LightSource *source = &map->light_sources[i];
@@ -263,7 +261,7 @@ void light_map_generate(Map *map)
         unsigned int checked_cell_count = 0;
 
         Vector ray_dir;
-        float angle = 0;
+        double angle = 0;
 
         while (angle <= 360) {
             ray_dir = vector_rotate(vector(1, 1), deg_to_rad(angle));
@@ -313,9 +311,9 @@ void light_map_generate(Map *map)
 
                 cell = map_get_cell(map, (int)point.x, (int)point.y);
 
-                float dist  = side == SIDE_HORIZONTAL ? side_dist_x : side_dist_y;
-                float ray_x = (source->x + dist * ray_dir.x);
-                float ray_y = (source->y + dist * ray_dir.y);
+                double dist  = side == SIDE_HORIZONTAL ? side_dist_x : side_dist_y;
+                double ray_x = (source->x + dist * ray_dir.x);
+                double ray_y = (source->y + dist * ray_dir.y);
 
                 if (source->radius + 2 < hypot(source->x - ray_x, source->y - ray_y)) {
                     break;
@@ -342,6 +340,8 @@ void light_map_generate(Map *map)
     }
 
     compile_light_maps();
+
+    /* exit(0); */
 }
 
 void light_map_cleanup(LightMap *light_map)

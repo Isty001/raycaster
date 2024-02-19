@@ -52,34 +52,40 @@ Vector vector_rotate(Vector vector, float rotation)
 PolygonyHit polygon_hit(Point from, const Polygon *polygon, const Vector *ray_dir, Point cell_point, CellSide side)
 {
     // Extend the ray to make sure it hits the polygon
-    double ray_x = from.x + ray_dir->x * 1000.0;
-    double ray_y = from.y + ray_dir->y * 1000.0;
+    double ray_x = from.x + ray_dir->x * 100.0;
+    double ray_y = from.y + ray_dir->y * 100.0;
 
     const LineSegment ray_segment = line_segment(point(from.x, from.y), point(ray_x, ray_y));
 
-    PolygonyHit hit = {.exists = false, .wall_x = 9999999999, .rel_distance = 999999999};
+    PolygonyHit hit = {.exists = false, .wall_x = 9999999999, .rel_dist = 999999999};
+
+    double prev_dist = 999999999;
 
     for (unsigned int i = 0; i < polygon->segment_count; i++) {
-        // @TODO return the actual line segment hit
         const LineSegment *poly_line_segment = &polygon->segments[i].line;
         const Intersection intersection      = line_segment_intersection(&ray_segment, poly_line_segment);
 
         if (intersection.exists) {
             hit.exists = true;
 
-            float dist;
+            double rel_dist;
+            double dist;
 
             if (side == SIDE_HORIZONTAL) {
-                dist = fabs(from.x > cell_point.x ? ceil(cell_point.x + 0.0001) - intersection.point.x : floor(cell_point.x) - intersection.point.x);
+                rel_dist = fabs(from.x > cell_point.x ? ceil(cell_point.x + 0.0001) - intersection.point.x : floor(cell_point.x) - intersection.point.x);
             } else {
-                dist = fabs(from.y > cell_point.y ? ceil(cell_point.y + 0.0001) - intersection.point.y : floor(cell_point.y) - intersection.point.y);
+                rel_dist = fabs(from.y > cell_point.y ? ceil(cell_point.y + 0.0001) - intersection.point.y : floor(cell_point.y) - intersection.point.y);
             }
 
-            if (dist < hit.rel_distance) {
-                hit.rel_distance        = dist;
+            dist = hypot(from.x - intersection.point.x, from.y - intersection.point.y);
+
+            if (rel_dist < hit.rel_dist) {
+                hit.rel_dist            = rel_dist;
                 hit.wall_x              = hypot(poly_line_segment->start.x - intersection.point.x, poly_line_segment->start.y - intersection.point.y);
                 hit.intersected_segment = &polygon->segments[i];
             }
+
+            prev_dist = dist;
         }
     }
 

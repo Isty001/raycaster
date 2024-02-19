@@ -25,7 +25,7 @@ static int worldMap[MAP_WIDTH][MAP_HEIGHT] =
   {2,2,0,0,0,0,0,2,2,4,0,0,0,0,0,0,4,3,0,0,0,0,0,3},
   {2,0,0,0,0,0,0,0,2,4,0,0,0,0,0,0,4,3,0,0,0,0,0,3},
   {1,0,0,0,0,0,0,0,1,4,4,4,4,4,6,0,6,3,3,0,0,0,3,3},
-  {2,2,0,0,2,0,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5},
+  {2,2,0,0,1,0,0,2,2,2,0,0,0,2,2,0,5,0,5,0,0,0,5,5},
   {2,0,0,0,0,2,0,0,2,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
   {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5},
   {2,0,0,0,0,1,0,2,0,0,0,0,0,0,2,5,0,5,0,5,0,5,0,5},
@@ -121,15 +121,16 @@ static Sprite sprites[numSprites] = {
     {.x = 10.5, .y = 15.8, .id = 5000, .texture = NULL, .size = 0.5, .vertical_offset = 300},
 };
 
-static PolygonSegment POLYGON_SEGMENTS[] = {
-    {.line = {.start = point(17, 4.0), .end = point(17, 4.5)}, .light_map = NULL},
-    /* {.line = {.start = point(17, 5), .end = point(18, 5)}, .light_map = NULL} */
-    {.line = {.start = point(18, 5), .end = point(18, 4)}, .light_map = NULL}
-    /* {.line = {.start = point(18, 4), .end = point(17, 4)}, .light_map = NULL} */
-};
+/* static PolygonSegment POLYGON_SEGMENTS[] = {{.line = {.start = point(17, 4.0), .end = point(17, 4.99999999)}, .light_map = NULL}, */
+/*                                             {.line = {.start = point(17, 5), .end = point(18, 4.99999999)}, .light_map = NULL}, */
+/*                                             {.line = {.start = point(18, 5), .end = point(17.99999999, 4)}, .light_map = NULL}, */
+/*                                             {.line = {.start = point(18, 4), .end = point(17.00000001, 4)}, .light_map = NULL}}; */
+
+static PolygonSegment POLYGON_SEGMENTS[] = {{.line = {.start = point(18, 4.0), .end = point(18, 4.99999999)}, .light_map = NULL},
+                                            };
 
 static Polygon POLYGON = {
-    .segment_count = 2,
+    .segment_count = 1,
     .segments      = POLYGON_SEGMENTS,
 };
 
@@ -173,6 +174,10 @@ Map *map_load(void)
                 map->cells[x][y].wall.polygon = &POLYGON;
             } else {
                 if (false == map->cells[x][y].wall.empty) {
+                    /* if (17 == x && 4 == y) { */
+                        /* printf("ASD"); */
+                        /* exit(0); */
+                    /* } */
                     Point bottom_left  = point(x, y);
                     Point bottom_right = point(x, y + 1);
 
@@ -184,10 +189,11 @@ Map *map_load(void)
 
                     PolygonSegment *segments = malloc(4 * sizeof(PolygonSegment));
 
-                    segments[0] = (PolygonSegment){.line = line_segment(bottom_left, bottom_right), .light_map = calloc(1, sizeof(LightMap))};
-                    segments[1] = (PolygonSegment){.line = line_segment(bottom_right, top_right), .light_map = calloc(1, sizeof(LightMap))};
-                    segments[2] = (PolygonSegment){.line = line_segment(top_right, top_left), .light_map = calloc(1, sizeof(LightMap))};
-                    segments[3] = (PolygonSegment){.line = line_segment(top_left, bottom_left), .light_map = calloc(1, sizeof(LightMap))};
+                    segments[0] = (PolygonSegment){.line = line_segment(point(x, y), point(x + 1, y)), .light_map = calloc(1, sizeof(LightMap))};
+                    segments[1] = (PolygonSegment){.line = line_segment(point(x, y + 1), point(x + 1, y + 1)), .light_map = calloc(1, sizeof(LightMap))};
+
+                    segments[2] = (PolygonSegment){.line = line_segment(point(x, y + 0.00000001), point(x, y + 0.9999999)), .light_map = calloc(1, sizeof(LightMap))};
+                    segments[3] = (PolygonSegment){.line = line_segment(point(x + 1, y + 0.00000001), point(x + 1, y + 0.9999999)), .light_map = calloc(1, sizeof(LightMap))};
 
                     polygon->segments = segments;
 

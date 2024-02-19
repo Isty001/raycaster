@@ -13,8 +13,8 @@
 #define deg_to_rad(deg) (deg * (M_PI / 180))
 
 typedef struct {
-    float x;
-    float y;
+    double x;
+    double y;
 } Point;
 
 #define point(_x, _y) ((Point){.x = (_x), .y = (_y)})
@@ -40,8 +40,8 @@ Intersection line_segment_intersection(const LineSegment *l1, const LineSegment 
 bool line_segment_has_point(const LineSegment *segment, Point point);
 
 typedef struct {
-    float x;
-    float y;
+    double x;
+    double y;
 } Vector;
 
 #define vector(_x, _y) ((Vector){.x = (_x), .y = (_y)})
@@ -66,7 +66,7 @@ typedef struct {
 
 typedef struct {
     bool exists;
-    double rel_distance;
+    double rel_dist;
     double wall_x;
     const PolygonSegment *intersected_segment;
 } PolygonyHit;
